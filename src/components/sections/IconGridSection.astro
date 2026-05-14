@@ -1,0 +1,872 @@
+---
+/**
+ * IconGridSection — v5-modern feature card grid rebuild.
+ *
+ * Same Sanity props (items, layout, itemStyle, colorTheme, columns, size,
+ * ctaLabel/ctaLink). Visual treatment now uses .bbg-section + bento cards
+ * with proper icon framing, item-level CTAs styled as v5 link labels.
+ */
+import type { IconGridSection } from '../../types/sections';
+import { portableTextToHtml } from '../../lib/portableText';
+import { splitHighlight } from '../../utils/highlightTitle';
+import { buildSanityImageUrl, optimizeImageUrl, type SanityImageSource } from '../../lib/imageOptimizer';
+import { normalizeInternalHref } from '../../lib/links';
+
+/**
+ * Build an icon image URL that honors Sanity crop + hotspot metadata.
+ * Falls back to plain URL optimization for legacy items where only a
+ * `iconUrl` string was stored without the full asset object.
+ */
+const buildIconUrl = (
+  source: SanityImageSource | undefined,
+  fallbackUrl: string | undefined,
+  options: { width: number; height: number; fit?: 'crop' | 'scale' | 'max' | 'fill' },
+) => {
+  if (source?.asset) {
+    const built = buildSanityImageUrl(source, {
+      width: options.width,
+      height: options.height,
+      quality: 76,
+      format: 'webp',
+      fit: options.fit ?? 'crop',
+    });
+    if (built) return built;
+  }
+  if (fallbackUrl) {
+    return optimizeImageUrl(fallbackUrl, {
+      width: options.width,
+      height: options.height,
+      quality: 76,
+      format: 'webp',
+      fit: options.fit ?? 'crop',
+    });
+  }
+  return '';
+};
+
+const props = Astro.props as IconGridSection;
+const titleSegments = splitHighlight(props.title, props.highlightText);
+const isVertical = props.layout !== 'horizontal';
+const itemStyle = props.itemStyle ?? 'flat';
+const isCard = itemStyle === 'card';
+
+const rawColorTheme = props.colorTheme ?? 'white';
+const colorTheme =
+  (
+    {
+      blue: 'oliveGreen',
+      darkBlue: 'darkGreen',
+      yellow: 'cream',
+    } as Record<string, string>
+  )[rawColorTheme] ?? rawColorTheme;
+// Olive and darkGreen are BOTH dark surfaces (light text needed) but
+// they paint different greens. Keep them split so olive renders as
+// olive — not as green-deep masquerading as olive.
+const isOliveSection = colorTheme === 'oliveGreen';
+const isDarkSection = colorTheme === 'darkGreen';
+const isAnyDarkSection = isOliveSection || isDarkSection;
+const isCreamSection = colorTheme === 'cream';
+
+// Map every color option to its concrete section bg utility class.
+const sectionBgClass = (
+  {
+    'soft-green': 'bbg-section-soft-green',
+    sage: 'bbg-section-sage',
+  } as Record<string, string>
+)[colorTheme] ?? '';
+
+const subtitleText = props.subtitle?.trim();
+const hasDescription = (props.description?.length ?? 0) > 0;
+const descriptionHtml = hasDescription ? portableTextToHtml(props.description, isAnyDarkSection) : '';
+const useItemLabelAsHeading = !props.title && !hasDescription;
+
+const columnCount = props.columns ?? 2;
+const sizeClass =
+  props.size === 'large' ? 'is-size-large' : props.size === 'medium' ? 'is-size-medium' : 'is-size-small';
+
+// Icon display dimensions per size variant (see CSS .bbg-icon-frame rules):
+//   small  → 64px
+//   medium → 80px
+//   large  → 128px
+// Lighthouse's latest run shows icons actually paint at 128×128 (the
+// 224 size from the previous report was either a different layout or a
+// pre-CSS-load measurement). Serve at 1.4× the display size — retina
+// crisp without the "image larger than displayed" flag.
+const iconDisplayPx = props.size === 'large' ? 128 : props.size === 'medium' ? 80 : 64;
+const iconRequestPx = Math.round(iconDisplayPx * 1.4);
+
+const formatCtaLabel = (label?: string, _itemLabel?: string, _href?: string) => {
+  const trimmed = (label ?? '').trim();
+  // Use the Sanity-supplied label verbatim. Falling back only when empty
+  // — never auto-expand "Learn more" into a long multi-line phrase, since
+  // that overflows fixed-width card buttons.
+  return trimmed || 'Learn more';
+};
+
+const sectionTopHref = normalizeInternalHref(props.ctaLink);
+---
+
+<section class={`bbg-section bbg-icon ${isOliveSection ? 'bbg-icon-olive' : isDarkSection ? 'bbg-icon-dark' : isCreamSection ? 'bbg-icon-cream' : 'bbg-icon-light'} ${sectionBgClass}`}>
+  <div class="bbg-wrap">
+    {(props.title || subtitleText || descriptionHtml) && (
+      <div class="bbg-icon-head">
+        {subtitleText && (
+          <span class="bbg-icon-eyebrow">
+            <span class="bbg-icon-eyebrow-dot" aria-hidden="true"></span>
+            {subtitleText}
+          </span>
+        )}
+
+        {props.title && (
+          <h2 class="bbg-icon-title">
+            {titleSegments.map((segment) =>
+              segment.highlight ? (
+                <span class="bbg-icon-leaf">{segment.text}</span>
+              ) : (
+                <span>{segment.text}</span>
+              ),
+            )}
+          </h2>
+        )}
+
+        {descriptionHtml && (
+          <div class="bbg-icon-desc" set:html={descriptionHtml} />
+        )}
+      </div>
+    )}
+
+    {props.items?.length > 0 && (
+      <ul
+        class={`bbg-icon-grid ${isVertical ? 'is-vertical' : 'is-horizontal'} cols-${columnCount} ${sizeClass}`}
+        aria-label="Feature grid"
+      >
+        {props.items.map((item, index) => {
+          const iconUrl = item.icon?.asset?.url ?? item.icon?.url ?? (item as any).iconUrl;
+          const isPrimaryIcon = index === 0;
+          const iconAlt = item.icon?.alt ?? (item.label ? `${item.label} icon` : 'Feature icon');
+          const ctaLink = normalizeInternalHref(item.ctaLink) ?? '';
+          const formattedCtaLabel = formatCtaLabel(item.ctaLabel, item.label, ctaLink);
+          const TitleTag = useItemLabelAsHeading ? 'h2' : 'h3';
+          const SubtitleTag = useItemLabelAsHeading ? 'h3' : 'h4';
+
+          return (
+            <li class="bbg-icon-cell">
+              <article class={`bbg-icon-card ${isCard ? 'is-card' : 'is-flat'}`}>
+                {/* Icon — same simple inline treatment in every layout +
+                    style combo, matching {{FORK_SOURCE_PROJECT}}'s pattern. No more
+                    full-bleed cropped image header for vertical cards —
+                    just a small icon at the top (vertical) or left
+                    (horizontal) with padding around it. */}
+                {iconUrl && (
+                  <div class="bbg-icon-frame" aria-hidden="true">
+                    <img
+                      src={buildIconUrl(item.icon as SanityImageSource | undefined, iconUrl, { width: iconRequestPx, height: iconRequestPx, fit: 'crop' })}
+                      alt={iconAlt}
+                      width={iconDisplayPx}
+                      height={iconDisplayPx}
+                      loading={isPrimaryIcon ? 'eager' : 'lazy'}
+                      fetchpriority={isPrimaryIcon ? 'high' : 'auto'}
+                      decoding="async"
+                    />
+                  </div>
+                )}
+
+                <div class="bbg-icon-content">
+                  <TitleTag class="bbg-icon-item-title">{item.label}</TitleTag>
+                  {item.subtitle && (
+                    <SubtitleTag class="bbg-icon-item-subtitle">{item.subtitle}</SubtitleTag>
+                  )}
+                  {item.description && (
+                    <p class="bbg-icon-item-desc">{item.description}</p>
+                  )}
+
+                  {item.benefits && item.benefits.length > 0 && (
+                    <div class="bbg-icon-benefits-wrap">
+                      {(item as any).benefitsTitle && (
+                        <p class="bbg-icon-benefits-title">{(item as any).benefitsTitle}</p>
+                      )}
+                      <ul class="bbg-icon-benefits">
+                        {item.benefits.map((benefit) => (
+                          <li>
+                            <span class="bbg-icon-bullet" aria-hidden="true">
+                              <svg viewBox="0 0 20 20" class="h-full w-full fill-current">
+                                <path d="M8.5 13.5 5.3 10.3l-1.4 1.4 4.6 4.6 8-8-1.4-1.4-6.6 6.6Z" />
+                              </svg>
+                            </span>
+                            <span>{benefit}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* CARD MODE: full-width primary button at the bottom */}
+                  {isCard && isVertical && item.ctaLabel && ctaLink && (
+                    <a href={ctaLink} class="btn-primary bbg-icon-card-button">
+                      {formattedCtaLabel}
+                      <svg viewBox="0 0 24 24" class="bbg-icon-arrow" aria-hidden="true">
+                        <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </a>
+                  )}
+
+                  {/* FLAT MODE: legacy text-link CTA (kept for horizontal layouts) */}
+                  {!(isCard && isVertical) && item.ctaLabel && ctaLink && (
+                    <a href={ctaLink} class="bbg-icon-card-cta">
+                      {formattedCtaLabel}
+                      <svg viewBox="0 0 24 24" class="bbg-icon-arrow" aria-hidden="true">
+                        <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </a>
+                  )}
+                </div>
+              </article>
+            </li>
+          );
+        })}
+      </ul>
+    )}
+
+    {props.ctaLabel && sectionTopHref && (
+      <div class="bbg-icon-bottom-cta">
+        <a href={sectionTopHref} class="btn-primary">
+          {props.ctaLabel}
+          <svg viewBox="0 0 24 24" class="bbg-icon-arrow" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </a>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  /* === Section variants ============================================ */
+  .bbg-icon-light { background: var(--warm-white); }
+  .bbg-icon-cream { background: var(--sand-pale); }
+  .bbg-icon-dark  { background: var(--green-deep);  color: var(--warm-white); }
+  /* Olive is its own dark surface — visibly different green from
+     --green-deep so users can distinguish "Olive Green" from "Dark Green"
+     in Sanity. Every descendant rule scoped under .bbg-icon-dark is
+     written as :is(.bbg-icon-dark, .bbg-icon-olive) so both surfaces
+     get the same light-text + white-card treatment. */
+  .bbg-icon-olive { background: var(--green-olive); color: var(--warm-white); }
+
+  /* === Header ====================================================== */
+  .bbg-icon-head {
+    text-align: center;
+    max-width: 920px;
+    margin: 0 auto 56px;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-icon-head { margin-bottom: 32px; }
+  }
+
+  .bbg-icon-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    /* Darker red variant so the 12px uppercase eyebrow passes WCAG AA on
+       every light section bg (white, cream, sand, sage). The brand red
+       --emergency only hit 4.75:1 on white and below 4.5:1 on cream. */
+    color: var(--emergency-text);
+    margin-bottom: 18px;
+  }
+
+  /* On the dark-green and olive section variants the eyebrow color
+     override is critical for AA contrast:
+       • --sand-pale (#ECE3D4) on olive #5E7F3A is only ~3.6:1 — fails
+         AA (needs 4.5:1 at 12px non-bold-equiv).
+       • Pure white on olive is ~4.77:1 — passes AA with margin.
+       • Pure white on green-deep #1F4D3C is ~11:1 — passes easily.
+     So we use white (not sand-pale) for both dark and olive variants,
+     with !important so a cascade quirk can't ever let the red token
+     through. */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-eyebrow { color: #ffffff !important; }
+
+  /* Red accent dot per brand direction — decorative, not a CTA. */
+  .bbg-icon-eyebrow-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--emergency);
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.18);
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-eyebrow-dot {
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.32);
+  }
+
+  .bbg-icon-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-black);
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-title { color: var(--warm-white); }
+
+  /* Highlight word: solid brand red, italic. 5.4:1 vs warm-white = AA. */
+  .bbg-icon-leaf {
+    display: inline-block;
+    font-style: italic;
+    padding-right: 0.05em;
+    color: var(--emergency);
+  }
+
+  /* On dark sections, fall back to sand-pale (red on green-deep fails). */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-leaf {
+    color: var(--sand-pale);
+  }
+
+  .bbg-icon-desc {
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin-top: 16px;
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-desc { color: rgba(247, 245, 241, 0.92); }
+
+  .bbg-icon-desc :global(p) { margin: 0 0 0.6em; }
+  .bbg-icon-desc :global(p:last-child) { margin: 0; }
+
+  /* === Grid ========================================================
+   * grid-auto-rows: 1fr equalizes cards within a single row, but
+   * different rows can still differ because each implicit row sizes
+   * to its own tallest card. Combined with min-height on the cells
+   * (set per-row variant below) we get visually equal cards across
+   * the whole grid. */
+  .bbg-icon-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 16px;
+    grid-auto-rows: auto;
+  }
+
+  /* Vertical+card grids keep equal-card heights via grid-auto-rows: 1fr
+     so the rounded cards line up neatly in rows. Horizontal/flat rows
+     stay on auto so short-content items don't acquire empty space. */
+  .bbg-icon-grid.is-vertical:has(.bbg-icon-card.is-card) {
+    grid-auto-rows: 1fr;
+  }
+
+  /* No min-height on horizontal cells — let each row size to its own
+     content. Earlier we pinned cells to 168px to make all cards equal
+     height across rows, but for short descriptions that forced large
+     empty space inside the card and made the rows feel far apart.
+     {{FORK_SOURCE_PROJECT}}'s pattern lets cells flow naturally. */
+
+  .bbg-icon-cell {
+    display: flex;
+  }
+
+  .bbg-icon-cell > .bbg-icon-card {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+  }
+
+  .bbg-icon-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bbg-icon-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .bbg-icon-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  @media (max-width: 980px) {
+    .bbg-icon-grid.cols-3,
+    .bbg-icon-grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 600px) {
+    .bbg-icon-grid { grid-template-columns: 1fr !important; }
+  }
+
+  .bbg-icon-cell {
+    list-style: none;
+  }
+
+  /* === Card / flat item ============================================ */
+  .bbg-icon-card {
+    height: 100%;
+    display: flex;
+    gap: 18px;
+  }
+
+  .bbg-icon-grid.is-vertical .bbg-icon-card {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .bbg-icon-grid.is-horizontal .bbg-icon-card {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  /* === ADVANCED CARD (vertical + itemStyle: 'card') ================
+   * Image header at the top with no padding, padded body in the
+   * middle, primary CTA button anchored at the bottom. Always uses
+   * a warm-white surface so it pops on light AND dark sections.
+   */
+  /* Card aesthetic aligned with {{FORK_SOURCE_PROJECT}}'s pattern — single rounded
+     white card with a soft floating shadow and a light hover lift.
+     Internal padding now lives on the .is-card rule (was 0 to make
+     room for the old full-bleed image header). Vertical/horizontal
+     variants tweak the padding via more specific rules below. */
+  .bbg-icon-card.is-card {
+    position: relative;
+    background: #ffffff;
+    border-radius: 32px;
+    padding: 28px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 25px 40px -12px rgba(15, 23, 42, 0.08);
+    transition:
+      transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 240ms ease,
+      border-color 240ms ease;
+    height: 100%;
+  }
+
+  /* Horizontal + card — keep the white card wrapper, just resize the
+     padding so icon-left + content-right reads cleanly inside. */
+  .bbg-icon-grid.is-horizontal .bbg-icon-card.is-card {
+    padding: 26px;
+    gap: 22px;
+    align-items: center;
+  }
+
+  /* Flat horizontal items (e.g., "What Sets Us Apart") — give the icon
+     and text proper breathing room so cards don't feel cramped. */
+  .bbg-icon-grid.is-horizontal .bbg-icon-card.is-flat {
+    gap: 22px;
+    padding: 22px 26px;
+    align-items: center;
+  }
+
+  .bbg-icon-grid.is-horizontal .bbg-icon-card.is-flat .bbg-icon-content {
+    gap: 8px;
+  }
+
+  /* Even on dark sections, give the flat horizontal cards a soft
+     translucent panel so the content has breathing space + a clear
+     visual frame, instead of bleeding edge-to-edge. */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-flat {
+    background: rgba(247, 245, 241, 0.06);
+    border-radius: 18px;
+    padding: 22px 26px;
+    backdrop-filter: blur(2px);
+  }
+
+  .bbg-icon-grid.is-vertical .bbg-icon-card.is-card {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .bbg-icon-card.is-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 35px 70px -14px rgba(15, 23, 42, 0.15);
+    border-color: rgba(15, 23, 42, 0.12);
+  }
+
+  /* On dark sections, cards keep a clean white surface so they read as
+     bright floating tiles against the dark green band. Slightly deeper
+     shadow so they don't disappear into the dark surface. */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-card {
+    background: #ffffff;
+    border-color: rgba(15, 23, 42, 0.06);
+    box-shadow: 0 28px 56px -16px rgba(15, 23, 42, 0.45);
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-card:hover {
+    border-color: rgba(15, 23, 42, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 36px 72px -16px rgba(15, 23, 42, 0.55);
+  }
+
+  /* Horizontal + flat on dark sections — bare items need light text so
+     they read against the dark green band. Card mode on dark sections
+     keeps its white wrapper so dark text on white still works there. */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-horizontal .bbg-icon-card.is-flat .bbg-icon-item-title {
+    color: var(--warm-white);
+  }
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-horizontal .bbg-icon-card.is-flat .bbg-icon-item-subtitle {
+    color: var(--sand-pale);
+  }
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-horizontal .bbg-icon-card.is-flat .bbg-icon-item-desc,
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-horizontal .bbg-icon-card.is-flat .bbg-icon-benefits li {
+    color: rgba(247, 245, 241, 0.88);
+  }
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-horizontal .bbg-icon-card.is-flat .bbg-icon-bullet {
+    background: rgba(247, 245, 241, 0.14);
+    color: var(--warm-white);
+  }
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-horizontal .bbg-icon-card.is-flat .bbg-icon-card-cta {
+    color: var(--warm-white);
+  }
+
+  /* Override item-text colors on cards — even on dark sections, the
+     card itself is warm-white so text needs to be ink-toned. */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-card .bbg-icon-item-title { color: var(--ink-black); }
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-card .bbg-icon-item-subtitle { color: var(--green-deep); }
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-card .bbg-icon-item-desc,
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-card .bbg-icon-benefits li { color: var(--ink-soft); }
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-card .bbg-icon-bullet {
+    background: rgba(94, 127, 58, 0.14);
+    box-shadow: none;
+    color: var(--green-deep);
+  }
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-card .bbg-icon-card-cta { color: var(--green-deep); }
+
+  /* === Card image header (full-bleed, no padding) =================
+   * Sits flush at the top of the card. 16:10 aspect for a generous
+   * presence without dominating the card height. Sand-pale gradient
+   * placeholder when no Sanity icon is set.
+   */
+  /* NOTE: the old .bbg-icon-card-image full-bleed cropped header
+     pattern was removed — every layout now uses the simple .bbg-icon-frame
+     above so cards have a small icon with padding around it ({{FORK_SOURCE_PROJECT}}
+     pattern), not a closed-up cropped image header. */
+
+  /* === Vertical + card layout — {{FORK_SOURCE_PROJECT}}-style
+     Icon sits at the top of the card, centered, with breathing room.
+     Then title, description, CTA stack below. The whole card has even
+     padding so nothing feels "closed up" against the edges. */
+  .bbg-icon-grid.is-vertical .bbg-icon-card.is-card {
+    padding: 32px 28px 28px;
+    text-align: center;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .bbg-icon-grid.is-vertical .bbg-icon-card.is-card .bbg-icon-frame {
+    margin: 0 auto;
+  }
+
+  .bbg-icon-grid.is-vertical .bbg-icon-card.is-card .bbg-icon-content {
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+  }
+
+  /* === Bottom CTA button (replaces the small text-link in card mode)
+   * Sentence-case (not uppercase) and allows wrap so long Sanity-driven
+   * labels like "Learn more about 1-Day Heat Treatment" fit cleanly
+   * inside the card without overflowing.
+   */
+  .bbg-icon-card-button {
+    margin-top: auto;
+    width: 100%;
+    min-height: 52px;
+    font-size: 13.5px;
+    padding: 12px 16px;
+    text-transform: none;
+    letter-spacing: -0.005em;
+    line-height: 1.25;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .bbg-icon-card-button .bbg-icon-arrow {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .bbg-icon-card-button:hover .bbg-icon-arrow,
+  .bbg-icon-card-button:focus-visible .bbg-icon-arrow {
+    transform: translateX(3px);
+  }
+
+  /* Vertically center icon with content in horizontal layout (legacy) */
+  .bbg-icon-grid.is-horizontal .bbg-icon-card {
+    align-items: center;
+  }
+
+  /* Flat-mode (no card chrome) on dark sections — keeps the
+     "What Sets Us Apart" pattern bare per earlier instruction. */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card.is-flat {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  /* Icon frame — bare layout box, no background tile.
+     Sized to match {{FORK_SOURCE_PROJECT}}'s defaults: small 64px, medium 80px,
+     large 128px. Source artwork with transparent padding will read
+     proportionally inside this frame. */
+  .bbg-icon-frame {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    box-shadow: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bbg-icon-frame img {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* Dark sections: same bare treatment. */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-frame {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    width: 64px;
+    height: 64px;
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-frame img {
+    width: 100%;
+    height: 100%;
+    filter: none;
+  }
+
+  /* Size variants — frame grows ({{FORK_SOURCE_PROJECT}} defaults: 64/80/128). */
+  .bbg-icon-grid.is-size-medium .bbg-icon-frame {
+    width: 80px;
+    height: 80px;
+    border-radius: 0;
+  }
+
+  .bbg-icon-grid.is-size-medium .bbg-icon-frame img {
+    width: 100%;
+    height: 100%;
+  }
+
+  .bbg-icon-grid.is-size-large .bbg-icon-frame {
+    width: 128px;
+    height: 128px;
+    border-radius: 0;
+  }
+
+  .bbg-icon-grid.is-size-large .bbg-icon-frame img {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Dark size variants stay flat (no frame chrome) */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-size-medium .bbg-icon-frame,
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-size-large .bbg-icon-frame {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-size-medium .bbg-icon-frame img {
+    width: 80px;
+    height: 80px;
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-grid.is-size-large .bbg-icon-frame img {
+    width: 96px;
+    height: 96px;
+  }
+
+  /* === Card content ================================================ */
+  .bbg-icon-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .bbg-icon-item-title {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.3;
+    color: var(--ink-black);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-item-title { color: var(--warm-white); }
+
+  .bbg-icon-item-subtitle {
+    font-family: var(--font-heading);
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--green-deep);
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-item-subtitle { color: var(--sand-pale); }
+
+  /* Body text — unified to match other sections' body scale.
+     clamp(15px, 1.1vw, 16px) / 1.55 line-height / var(--font-body) */
+  .bbg-icon-item-desc {
+    font-family: var(--font-body);
+    font-size: clamp(15px, 1.1vw, 16px);
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 4px 0 0;
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-item-desc { color: rgba(247, 245, 241, 0.92); }
+
+  /* Benefits list wrapper (title + bullets) */
+  .bbg-icon-benefits-wrap {
+    margin: 12px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bbg-icon-benefits-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(14px, 1vw, 15px);
+    color: var(--ink-black);
+    letter-spacing: -0.005em;
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-benefits-title { color: var(--warm-white); }
+
+  /* Benefits list */
+  .bbg-icon-benefits {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bbg-icon-benefits li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-family: var(--font-body);
+    font-size: clamp(15px, 1.1vw, 16px);
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-benefits li { color: rgba(247, 245, 241, 0.92); }
+
+  /* Bullets always read flush-left, at every viewport. Card title +
+     description stay centered (vertical+card aesthetic) but the bullet
+     rows have a clear left edge so multi-line items wrap cleanly. */
+  .bbg-icon-benefits-wrap {
+    align-self: stretch;
+    width: 100%;
+    text-align: left;
+  }
+  .bbg-icon-benefits-title { text-align: left; }
+  .bbg-icon-benefits { align-items: flex-start; }
+  .bbg-icon-benefits li { text-align: left; }
+
+  /* In vertical+card cards, push the benefits block to the bottom of
+     the content area so it aligns to the CTA across cards regardless
+     of description length. Whitespace falls between description and
+     bullets instead of between bullets and CTA — cleaner cross-card
+     alignment for 3-up rows of treatment cards. Only kicks in when
+     benefits exist; otherwise the CTA keeps its own margin-top: auto. */
+  .bbg-icon-grid.is-vertical .bbg-icon-card.is-card .bbg-icon-benefits-wrap {
+    margin-top: auto;
+  }
+  .bbg-icon-grid.is-vertical .bbg-icon-card.is-card:has(.bbg-icon-benefits-wrap) .bbg-icon-card-button {
+    margin-top: 18px;
+  }
+
+  /* Bullet check chip — red outline + red check. Red on the chip's
+     own light background reads cleanly regardless of section bg. */
+  .bbg-icon-bullet {
+    flex-shrink: 0;
+    margin-top: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(200, 69, 69, 0.10);
+    box-shadow: inset 0 0 0 1.5px var(--emergency);
+    color: var(--emergency);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Same red treatment on dark sections — chip stays light, check stays red. */
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-bullet {
+    background: var(--sand-pale);
+    box-shadow: inset 0 0 0 1.5px var(--emergency);
+    color: var(--emergency);
+  }
+
+  .bbg-icon-bullet svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  /* Per-card CTA */
+  .bbg-icon-card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 14px;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--green-deep);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    transition: gap 220ms cubic-bezier(0.2, 0.8, 0.2, 1), color 220ms ease;
+  }
+
+  .bbg-icon-card-cta:hover,
+  .bbg-icon-card-cta:focus-visible {
+    gap: 12px;
+    color: var(--ink-black);
+  }
+
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card-cta { color: var(--warm-white); }
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card-cta:hover,
+  :is(.bbg-icon-dark, .bbg-icon-olive) .bbg-icon-card-cta:focus-visible { color: var(--sand-pale); gap: 12px; }
+
+  .bbg-icon-arrow {
+    width: 14px;
+    height: 14px;
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* === Bottom CTA ================================================== */
+  .bbg-icon-bottom-cta {
+    margin-top: 56px;
+    display: flex;
+    justify-content: center;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-icon-bottom-cta { margin-top: 32px; }
+  }
+</style>

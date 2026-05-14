@@ -1,0 +1,241 @@
+---
+import type { ProcessSection } from '../../types/sections';
+import { splitHighlight } from '../../utils/highlightTitle';
+import { portableTextToHtml } from '../../lib/portableText';
+import { buildSanityImageUrl, optimizeImageUrl } from '../../lib/imageOptimizer';
+import { normalizeInternalHref } from '../../lib/links';
+import CtaSubtitle from '../ui/CtaSubtitle.astro';
+
+const props = Astro.props as ProcessSection;
+const titleSegments = splitHighlight(props.title, props.highlightText);
+const rawBackgroundTheme = props.backgroundTheme ?? 'darkGreen';
+const backgroundTheme =
+  (
+    {
+      blue: 'oliveGreen',
+      darkBlue: 'darkGreen',
+      yellow: 'cream'
+    } as Record<string, string>
+  )[rawBackgroundTheme] ?? rawBackgroundTheme;
+
+const themeMap = {
+  white: {
+    section: 'bg-[#ffffff] text-[--color-text]',
+    heading: 'text-[--color-text]',
+    subtitle: 'text-[--color-text-muted]',
+    card: 'bg-white text-left',
+    cardHeading: 'text-[--color-text]',
+    cardMuted: 'text-[--color-text-muted]',
+    highlight: 'bbg-imgcard-leaf',
+    isDark: false
+  },
+  cream: {
+    section: 'bg-[--sand-pale] text-[--color-text]',
+    heading: 'text-[--color-text]',
+    subtitle: 'text-[--color-text-muted]',
+    card: 'bg-white text-left',
+    cardHeading: 'text-[--color-text]',
+    cardMuted: 'text-[--color-text-muted]',
+    highlight: 'bbg-imgcard-leaf',
+    isDark: false
+  },
+  oliveGreen: {
+    section: 'bg-[--green-primary] text-white',
+    heading: 'text-white',
+    subtitle: 'text-white/85',
+    card: 'bg-white text-left',
+    cardHeading: 'text-[--color-text]',
+    cardMuted: 'text-[--color-text-muted]',
+    highlight: 'bbg-imgcard-leaf-dark',
+    isDark: true
+  },
+  darkGreen: {
+    section: 'bg-[--green-deep] text-white',
+    heading: 'text-white',
+    subtitle: 'text-white/75',
+    card: 'bg-white text-left',
+    cardHeading: 'text-[--color-text]',
+    cardMuted: 'text-[--color-text-muted]',
+    highlight: 'bbg-imgcard-leaf-dark',
+    isDark: true
+  }
+} as const;
+const theme = themeMap[backgroundTheme as keyof typeof themeMap] ?? themeMap.darkGreen;
+const imagePlacement = props.imagePlacement ?? 'imageTop';
+const imageAbove = imagePlacement === 'imageTop';
+const cardHeight = props.cardHeight ?? 'default';
+const aspectRatio =
+  cardHeight === 'taller'
+    ? { width: 3, height: 4, className: 'aspect-[3/4]' }
+    : cardHeight === 'square'
+    ? { width: 1, height: 1, className: 'aspect-square' }
+    : { width: 16, height: 9, className: 'aspect-[16/9]' };
+const sizeRatio = aspectRatio.height / aspectRatio.width;
+const ctaSubtitle = props.ctaSubtitle?.trim();
+const ctaLink = normalizeInternalHref(props.ctaLink) ?? '';
+const ctaLabel = props.ctaLabel ?? '';
+const hasSectionCta = Boolean(ctaLabel && ctaLink);
+const alignment = props.alignment ?? 'center';
+const isCentered = alignment === 'center';
+const headingWrapClass = isCentered ? 'text-center items-center' : 'text-left items-start';
+const alignmentClass = isCentered ? 'text-center' : 'text-left';
+const cardTextAlignment = isCentered ? 'text-center' : 'text-left';
+const ctaAlignmentClass = isCentered ? 'items-center text-center' : 'items-center text-center md:items-start md:text-left';
+const columns = props.columns ?? 3;
+const gridColumnClass =
+  columns === 2
+    ? 'md:grid-cols-2'
+    : columns === 4
+    ? 'md:grid-cols-2 lg:grid-cols-4'
+    : 'md:grid-cols-3';
+const imageSizesAttr =
+  columns === 2
+    ? '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 50vw'
+    : columns === 4
+    ? '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw'
+    : '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw';
+---
+
+<section class={`section-full-width-lg flex flex-col justify-center ${theme.section}`}>
+  <div class="section-container space-y-12">
+    <div class={`space-y-3 ${headingWrapClass}`}>
+      {props.title && (
+        <h2 class={`text-4xl font-semibold tracking-tight ${theme.heading}`}>
+          {titleSegments.map((segment) =>
+            segment.highlight ? (
+              <span class={theme.highlight}>{segment.text}</span>
+            ) : (
+              <span class={theme.heading}>{segment.text}</span>
+            )
+          )}
+        </h2>
+      )}
+      {props.subtitle && <p class={`subtitle ${theme.subtitle}`}>{props.subtitle}</p>}
+    </div>
+    <ol class={`grid gap-8 ${gridColumnClass}`}>
+      {props.steps.map((step) => {
+        const cardTitle = (step.label || step.title || '').trim();
+        const highlightText = step.titleHighlight?.trim();
+        const titleSegments = splitHighlight(cardTitle, highlightText);
+        const stepImage = step.image;
+        const fallbackImageUrl = stepImage?.asset?.url ?? stepImage?.url;
+        const useSanityBuilder = Boolean(stepImage?.asset?._ref || stepImage?.asset?._id);
+        const descriptionHtml = step.description ? portableTextToHtml(step.description) : '';
+        const itemTitle = step.itemTitle?.trim();
+        const itemList = (step.itemList ?? []).map((item) => item?.trim()).filter(Boolean);
+        const hasItemList = itemList.length > 0;
+        const showDivider =
+          Boolean(step.showDivider) &&
+          Boolean(descriptionHtml) &&
+          (Boolean(itemTitle) || Boolean(step.itemDescription) || hasItemList);
+        const buildImageUrl = (width: number, quality: number) => {
+          const height = Math.round(width * sizeRatio);
+          if (useSanityBuilder) {
+            return buildSanityImageUrl(stepImage, { width, height, quality, fit: 'crop' });
+          }
+          return optimizeImageUrl(fallbackImageUrl, { width, height, quality, fit: 'crop' });
+        };
+        return (
+          <li
+            class={`group flex h-full flex-col overflow-hidden rounded-[18px] ${theme.card} shadow-[0_16px_32px_rgba(28,44,34,0.16)] ring-1 ring-[--color-border] transition hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(28,44,34,0.2)]`}
+            aria-label={cardTitle}
+          >
+            {imageAbove && (useSanityBuilder || fallbackImageUrl) && (
+              <div class={`overflow-hidden ${aspectRatio.className}`}>
+                <img
+                  src={buildImageUrl(600, 72)}
+                  srcset={`${buildImageUrl(400, 68)} 400w, ${buildImageUrl(600, 75)} 600w, ${buildImageUrl(1000, 78)} 1000w`}
+                  sizes={imageSizesAttr}
+                  alt={stepImage?.alt ?? cardTitle}
+                  loading="lazy"
+                  class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.05]"
+                  width="600"
+                  height={Math.round(600 * sizeRatio)}
+                />
+              </div>
+            )}
+            <div class={`flex flex-1 flex-col gap-4 p-7 ${cardTextAlignment}`}>
+              <div class="space-y-2">
+                <h3 class={`text-2xl font-semibold ${theme.cardHeading}`}>
+                  {titleSegments.map((segment) =>
+                    segment.highlight ? (
+                      <span class="bbg-imgcard-leaf">{segment.text}</span>
+                    ) : (
+                      <span class={theme.cardHeading}>{segment.text}</span>
+                    )
+                  )}
+                </h3>
+                {step.subtitle && <p class={`text-base ${theme.cardMuted}`}>{step.subtitle}</p>}
+              </div>
+              {descriptionHtml && (
+                <div class={`prose prose-slate max-w-none text-base ${theme.cardHeading} ${cardTextAlignment === 'text-center' ? 'mx-auto' : ''}`} set:html={descriptionHtml} />
+              )}
+              {showDivider && <hr class="my-3 w-full border-t border-slate-200/80" />}
+              {itemTitle && (
+                <h4 class="text-lg font-semibold text-(--color-primary)">{itemTitle}</h4>
+              )}
+              {step.itemDescription && (
+                <div class={`prose prose-slate max-w-none text-base ${theme.cardHeading} ${cardTextAlignment === 'text-center' ? 'mx-auto' : ''}`} set:html={portableTextToHtml(step.itemDescription)} />
+              )}
+              {hasItemList && (
+                <div class={isCentered ? 'flex justify-center' : ''}>
+                  <ul class={`space-y-2 ${theme.cardHeading} text-sm md:text-base`}>
+                    {itemList.map((item) => (
+                      <li class="flex items-start gap-3">
+                        <span class="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[--color-secondary] text-xs text-white">
+                          ✓
+                        </span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            {!imageAbove && (useSanityBuilder || fallbackImageUrl) && (
+              <div class={`overflow-hidden border-t border-slate-100 ${aspectRatio.className}`}>
+                <img
+                  src={buildImageUrl(600, 72)}
+                  srcset={`${buildImageUrl(400, 68)} 400w, ${buildImageUrl(600, 75)} 600w, ${buildImageUrl(1000, 78)} 1000w`}
+                  sizes={imageSizesAttr}
+                  alt={stepImage?.alt ?? cardTitle}
+                  loading="lazy"
+                  class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.05]"
+                  width="600"
+                  height={Math.round(600 * sizeRatio)}
+                />
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+    {hasSectionCta && (
+      <div class={`flex flex-col gap-3 ${ctaAlignmentClass}`}>
+        {ctaSubtitle && (
+          <CtaSubtitle text={ctaSubtitle} headingLevel="h3" class={theme.heading} />
+        )}
+        <a href={ctaLink} class="btn-primary mx-auto md:mx-0">
+          {ctaLabel}
+        </a>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  /* Unified highlight — red italic on light section, sand-pale italic on
+     olive/darkGreen section. Matches the hero "Aprehend" treatment. */
+  .bbg-imgcard-leaf {
+    display: inline-block;
+    color: var(--emergency);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+  .bbg-imgcard-leaf-dark {
+    display: inline-block;
+    color: var(--sand-pale);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+</style>

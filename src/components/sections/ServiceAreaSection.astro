@@ -1,0 +1,247 @@
+---
+import type { ServiceAreaSection } from '../../types/sections';
+import { splitHighlight } from '../../utils/highlightTitle';
+import { buildSanityImageUrl, optimizeImageUrl, type SanityImageSource } from '../../lib/imageOptimizer';
+import { normalizeInternalHref } from '../../lib/links';
+import CtaSubtitle from '../ui/CtaSubtitle.astro';
+
+const props = Astro.props as ServiceAreaSection;
+const pageSlug = (Astro.props as { pageSlug?: string }).pageSlug ?? '';
+
+const resolveLink = (link?: string) => normalizeInternalHref(link);
+
+const isImageUrl = (url?: string) => {
+  if (!url) return false;
+  return /\.(png|jpe?g|webp|svg)(\?.*)?$/i.test(url);
+};
+
+const ctaLink = resolveLink(props.ctaLink);
+const imageSource = props.image
+  ? ({
+      url: props.image.url,
+      asset: props.image.asset,
+      crop: props.image.crop,
+      hotspot: props.image.hotspot
+    } satisfies SanityImageSource)
+  : undefined;
+const imageUrl = props.image?.url ?? props.image?.asset?.url;
+const serviceAreaImageUrl = imageSource
+  ? buildSanityImageUrl(imageSource, {
+      width: 1100,
+      quality: 78,
+      format: 'webp',
+      fit: 'max'
+    }) || optimizeImageUrl(imageUrl, { width: 1100, fit: 'max' })
+  : optimizeImageUrl(imageUrl, { width: 1100, fit: 'max' });
+const embedLooksLikeImage = isImageUrl(props.mapEmbed);
+const titleSegments = splitHighlight(props.title, props.highlightText);
+const highlightClass = 'bbg-sa-leaf';
+const ctaSubtitlePlacement = props.ctaSubtitlePlacement ?? 'below';
+const ctaSubtitleHeadingLevel = props.ctaSubtitleHeadingLevel ?? 'h3';
+const hasCtaSubtitle = Boolean(props.ctaSubtitle?.trim());
+
+const defaultMapEmbed =
+  'https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d826826.3111524035!2d-95.98699!3d35.95210000000001!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x87b6974d9395a945%3A0xa4ae85626ea572e2!2s1334%20E%20146th%20Pl%20S%2C%20Glenpool%2C%20OK%2074033!5e0!3m2!1sen!2sus!4v1763039442541!5m2!1sen!2sus';
+
+const resolveMapEmbed = (embed?: string) => {
+  if (!embed || embedLooksLikeImage) return defaultMapEmbed;
+  const url = embed.trim();
+  // maps.app.goo.gl short links refuse to embed; fall back to default location
+  if (url.includes('maps.app.goo.gl')) return defaultMapEmbed;
+  // Convert standard Google Maps URLs to embeddable form if needed
+  if (url.includes('google.com/maps') && !url.includes('/embed')) {
+    return url.replace('google.com/maps', 'google.com/maps/embed');
+  }
+  return url;
+};
+
+const mapEmbedUrl = resolveMapEmbed(props.mapEmbed);
+const bedBugSubpages = [
+  { label: 'Bartlesville Bed Bug Heat Treatment', href: '/service-area/bartlesville/bartlesville-bed-bug-heat-treatment/' },
+  { label: 'Bartlesville Conventional Bed Bug Treatment', href: '/service-area/bartlesville/bartlesville-conventional-bed-bug-treatment/' },
+  { label: 'Bixby Bed Bug Heat Treatment', href: '/service-area/bixby/bixby-bed-bug-heat-treatment/' },
+  { label: 'Bixby Conventional Bed Bug Treatment', href: '/service-area/bixby/bixby-conventional-bed-bug-treatment/' },
+  { label: 'Broken Arrow Bed Bug Heat Treatment', href: '/service-area/broken-arrow/broken-arrow-bed-bug-heat-treatment/' },
+  { label: 'Broken Arrow Conventional Bed Bug Treatment', href: '/service-area/broken-arrow/broken-arrow-conventional-bed-bug-treatment/' },
+  { label: 'Claremore Bed Bug Heat Treatment', href: '/service-area/claremore/claremore-bed-bug-heat-treatment/' },
+  { label: 'Claremore Conventional Bed Bug Treatment', href: '/service-area/claremore/claremore-conventional-bed-bug-treatment/' },
+  { label: 'Claremore Same Day Bed Bug Treatment', href: '/service-area/claremore/claremore-same-day-bed-bug-treatment/' },
+  { label: 'Jenks Bed Bug Heat Treatment', href: '/service-area/jenks/jenks-bed-bug-heat-treatment/' },
+  { label: 'Jenks Conventional Bed Bug Treatment', href: '/service-area/jenks/jenks-conventional-bed-bug-treatment/' },
+  { label: 'Muskogee Bed Bug Conventional Treatment', href: '/service-area/muskogee/muskogee-bed-bug-conventional-treatment/' },
+  { label: 'Muskogee Bed Bug Heat Treatment', href: '/service-area/muskogee/muskogee-bed-bug-heat-treatment/' },
+  { label: 'Muskogee Same Day Bed Bug Treatment', href: '/service-area/muskogee/muskogee-same-day-bed-bug-treatment/' },
+  { label: 'Sand Springs Bed Bug Heat Treatment', href: '/service-area/sand-springs/sand-springs-bed-bug-heat-treatment/' },
+  { label: 'Sand Springs Conventional Bed Bug Treatment', href: '/service-area/sand-springs/sand-springs-conventional-bed-bug-treatment/' },
+  { label: 'Sand Springs Same Day Bed Bug Treatment', href: '/service-area/sand-springs/sand-springs-same-day-bed-bug-treatment/' },
+  { label: 'Tulsa Conventional Bed Bug Treatment', href: '/service-area/tulsa/tulsa-conventional-bed-bug-treatment/' },
+  { label: 'Tulsa Same Day Bed Bug Treatment', href: '/service-area/tulsa/tulsa-same-day-bed-bug-treatment/' }
+];
+---
+
+<section class="section-inner-lg w-full bg-white bbg-sa-section">
+  <div class="flex w-full flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:items-center bbg-sa-grid">
+    <div class="space-y-8 text-center sm:text-left">
+      <div class="space-y-3">
+        {props.title && (
+          <h2 class="text-3xl font-semibold text-slate-900">
+            {titleSegments.map((segment) =>
+              segment.highlight ? (
+                <span class={highlightClass}>{segment.text}</span>
+              ) : (
+                segment.text
+              )
+            )}
+          </h2>
+        )}
+        {props.subtitle && <p class="subtitle">{props.subtitle}</p>}
+        {props.description && <p class="section-description text-muted">{props.description}</p>}
+      </div>
+
+      {props.communities?.length > 0 && (
+        <ul class="grid gap-x-6 gap-y-3 grid-cols-2 sm:grid-cols-2" role="list">
+          {props.communities.map((community) => {
+            const href = resolveLink(community.link);
+            const label = (
+              <span class="text-base sm:text-lg font-semibold text-slate-900 transition-colors hover:text-(--color-primary)">
+                {community.label}
+              </span>
+            );
+
+            return (
+              <li class="flex items-start gap-2 sm:gap-3">
+                <span class="mt-1 inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-[--sand-pale] text-[--green-deep]">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" class="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current">
+                    <path d="M12 2C8.14 2 5 5.14 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.86-3.14-7-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z" />
+                  </svg>
+                </span>
+                <div>
+                  {href ? (
+                    <a href={href} class="focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-primary) focus-visible:ring-offset-2">
+                      {label}
+                    </a>
+                  ) : (
+                    label
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {props.ctaLabel && ctaLink && (
+        <div class="inline-flex flex-col items-center gap-3 self-start text-center w-full sm:w-auto">
+          {hasCtaSubtitle && ctaSubtitlePlacement === 'above' && (
+            <CtaSubtitle
+              text={props.ctaSubtitle}
+              headingLevel={ctaSubtitleHeadingLevel}
+              class="text-slate-900 w-full text-center text-lg md:text-xl"
+            />
+          )}
+          <a
+            href={ctaLink}
+            class="btn-primary inline-flex items-center gap-2 mx-auto md:mx-0"
+          >
+            <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/30">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="h-3.5 w-3.5 fill-current">
+                <path d="M16.62 13.28c-.38-.1-.81-.02-1.1.23l-1.74 1.5a14.77 14.77 0 0 1-5.04-5.04l1.5-1.74c.3-.29.42-.72.32-1.12l-.72-2.73a1.13 1.13 0 0 0-1.09-.84H6.21A1.71 1.71 0 0 0 4.5 4.5c0 8.15 6.85 15 15 15a1.71 1.71 0 0 0 1.71-1.71v-2.24c0-.51-.34-.96-.84-1.09l-2.75-.18Z" />
+              </svg>
+            </span>
+            {props.ctaLabel}
+          </a>
+          {hasCtaSubtitle && ctaSubtitlePlacement === 'below' && (
+            <CtaSubtitle
+              text={props.ctaSubtitle}
+              headingLevel={ctaSubtitleHeadingLevel}
+              class="text-slate-900 w-full text-center text-lg md:text-xl"
+            />
+          )}
+        </div>
+      )}
+
+      {pageSlug === 'service-area' && bedBugSubpages.length > 0 && (
+        <nav
+          id="service-area-bed-bug-links"
+          class="sr-only"
+          aria-label="Bed bug treatment service-area links"
+        >
+          <h2 class="sr-only">Bed bug treatment service-area links</h2>
+          <ul>
+            {bedBugSubpages.map((item) => (
+              <li>
+                <a href={item.href}>{item.label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+    </div>
+
+    <div class="relative">
+      {imageUrl ? (
+        <img
+          src={serviceAreaImageUrl}
+          alt={props.image?.alt ?? props.title ?? 'Service area image'}
+          width={1100}
+          loading="lazy"
+          decoding="async"
+          class="block h-auto w-full rounded-4xl bg-white"
+        />
+      ) : props.mapEmbed ? (
+        embedLooksLikeImage ? (
+          <img
+            src={props.mapEmbed}
+            alt={props.title ?? 'Service area image'}
+            width={1100}
+            loading="lazy"
+            decoding="async"
+            class="block h-auto w-full rounded-4xl bg-white"
+          />
+        ) : (
+          <iframe
+            src={mapEmbedUrl}
+            class="aspect-4/3 w-full rounded-4xl"
+            loading="lazy"
+            allowfullscreen
+            referrerpolicy="no-referrer-when-downgrade"
+          ></iframe>
+        )
+      ) : (
+        <div class="aspect-4/3 w-full rounded-4xl border border-dashed border-(--color-border) bg-panel"></div>
+      )}
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Unified highlight — red italic, matches hero. */
+  .bbg-sa-leaf {
+    display: inline-block;
+    color: var(--emergency);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+
+  /* Lock the section + grid to viewport so wide maps/images can't bleed
+     past the right edge on mobile — Tailwind w-full was being dropped by
+     v4 in this scoped context. */
+  .bbg-sa-section {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .bbg-sa-grid {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Force any map/image inside the right column to stay within bounds. */
+  .bbg-sa-grid :global(img),
+  .bbg-sa-grid :global(iframe) {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+</style>

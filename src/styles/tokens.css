@@ -1,0 +1,108 @@
+/**
+ * FFS Astro+Sanity Template — Design Tokens (NEUTRAL STARTER PALETTE)
+ * ----------------------------------------------------
+ * Replace this entire file with the client's tokens during Phase 3 of the
+ * astro-sanity-brand-intake skill. This starter palette is intentionally
+ * neutral (slate blue + green CTA + a red contrast accent) so it's
+ * obvious when nothing has been customized yet — the build won't look
+ * like a previous client's site.
+ *
+ * Every value below has a WCAG ratio comment so contrast issues are
+ * caught at the token level, not in Lighthouse audits after deploy.
+ *
+ * Token naming convention (see plugin reference design-tokens-spec.md):
+ *   --<family>-<role>    e.g. --blue-primary, --blue-deep
+ *   --btn-N(-hover)      buttons + their hover state
+ *   --surface-*          section/card backgrounds
+ *   --ink-*              text colors
+ *   --emergency*         red accent (and AA-safe small-text variant)
+ *
+ * Legacy aliases (--green-primary, --sand-pale, etc.) are kept at the
+ * bottom so section components built before the new brand was defined
+ * still resolve. Once the brand is finalized, you can swap the family
+ * names at the top and the aliases at the bottom together.
+ */
+
+:root {
+  /* === Brand: Primary family (REPLACE — neutral blue starter) ============ */
+  --blue-primary: #2563EB;     /* Main brand impression — 4.83:1 on white (AA normal) */
+  --blue-deep:    #1E40AF;     /* Dark variant for headers/hover — 8.6:1 on white (AAA) */
+  --blue-darker:  #1E3A8A;     /* Deepest layer — 11.7:1 on white (AAA) */
+  --blue-accent:  #60A5FA;     /* Light accent — DO NOT use for text on white (2.4:1, fails AA) */
+  --blue-hover:   #1D4ED8;     /* Subtle deeper hover variant */
+
+  /* === Brand: CTA buttons (REPLACE — vibrant green starter, white text) === */
+  --btn-1:        #10B981;     /* Primary CTA — bright vibrant green */
+  --btn-1-hover:  #34D399;     /* Brighter on hover, NEVER darker (darker reads as disabled) */
+  --btn-2:        #059669;     /* Secondary CTA */
+  --btn-2-hover:  #10B981;
+
+  /* === Brand: Inks ======================================================= */
+  --ink-black:    #0F172A;     /* Strong text — 17.7:1 on warm-white (AAA all sizes) */
+  --ink-soft:     #1E293B;     /* Body text — 14.3:1 on warm-white (AAA) */
+
+  /* === Surface palette =================================================== */
+  --surface-white:      #FFFFFF;
+  --surface-soft-blue:  #F1F5FF;     /* Very subtle brand tint */
+  --surface-mute:       #E2E8F0;     /* Visibly cool gray for sage-style variants */
+  --warm-white:         #F8FAFC;     /* Default page bg — slightly cool off-white */
+  --sand-pale:          #F1F5F9;     /* Cool alt-surface — replace warm tokens per brand */
+
+  /* Aliases so section components imported from prior projects (which used
+     green/sand/sage naming) keep resolving. Point them at the neutral
+     starter surfaces above; rename the family-level tokens when the new
+     brand's actual palette is defined. */
+  --surface-soft-green: var(--surface-soft-blue);
+  --surface-sage:       var(--surface-mute);
+
+  /* === Brand: Accents (red + supporting) ================================= */
+  /* The accent red is used for italic highlight words, decorative dots,
+     bullet outline rings, and the emergency CTA button. The text variant
+     is darker so 12px uppercase eyebrows pass AA on cream/white. */
+  --emergency:      #DC2626;     /* Decorative red — 4.83:1 on white (AA normal), fails on cream */
+  --emergency-text: #B91C1C;     /* AA-safe small red on cream — 6.4:1 on warm-white */
+  --heat-orange:    #EA580C;     /* Specialty decorative accent — NOT a button color */
+  --brand-gold:     #CA8A04;     /* Specialty accent (logo tagline) */
+
+  /* === Lines + shadows + radii =========================================== */
+  --line:          rgba(15, 23, 42, 0.14);
+  --line-strong:   rgba(15, 23, 42, 0.28);
+  --shadow-card:   0 4px 14px rgba(15, 23, 42, 0.06);
+  --shadow-elev:   0 12px 28px rgba(15, 23, 42, 0.10);
+
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 14px;
+
+  /* === Type ============================================================== */
+  /* REPLACE with the client's chosen font families. Self-hosted under
+     public/fonts/ recommended for performance (no third-party DNS / FOUT). */
+  --font-heading: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body:    'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* === Legacy aliases (older components still reference these) =========== */
+  --color-primary:      var(--blue-primary);
+  --color-primary-dark: var(--blue-deep);
+  --color-secondary:    var(--blue-accent);
+  --color-accent:       var(--blue-accent);
+  --color-surface:      var(--warm-white);
+  --color-panel:        #FFFFFF;
+  --color-border:       var(--line);
+  --color-text:         var(--ink-soft);
+  --color-text-strong:  var(--ink-black);
+  --color-text-muted:   #475569;    /* 8.4:1 on warm-white (AAA normal) */
+
+  /* === Family-name aliases (point green-* at blue-* until brand defines) === */
+  /* When the new brand has its own primary family name, rename these and
+     the family-level tokens at the top together. */
+  --green-primary: var(--blue-primary);
+  --green-deep:    var(--blue-deep);
+  --green-darker:  var(--blue-darker);
+  --green-olive:   #475569;
+  --green-bio:     var(--btn-1);
+  --green-hover:   var(--blue-hover);
+  --sand:          var(--surface-mute);
+  --sand-deep:     #CBD5E1;
+  --surface-tint:  var(--surface-soft-blue);
+  --surface-mint:  var(--surface-soft-blue);
+}

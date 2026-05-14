@@ -1,0 +1,661 @@
+---
+/**
+ * StepsSection — v5-modern process strip rebuild.
+ *
+ * Same Sanity props (steps[], title, subtitle, theme). Each step shows a big
+ * step number, label pill, title, description, optional bullets, and image
+ * alternating left/right. Numbers connect with a soft vertical rule for
+ * narrative flow. Light or dark theme based on colorTheme.
+ */
+import type { StepsSection } from '../../types/sections';
+import { buildSanityImageUrl, optimizeImageUrl, type SanityImageSource } from '../../lib/imageOptimizer';
+import { splitHighlight } from '../../utils/highlightTitle';
+
+const props = Astro.props as StepsSection;
+const steps = props.steps ?? [];
+const titleSegments = props.title ? splitHighlight(props.title, (props as any).highlightText) : [];
+
+const rawTheme = props.theme ?? 'white';
+const themeName =
+  (
+    {
+      blue: 'oliveGreen',
+      darkBlue: 'darkGreen',
+      yellow: 'cream',
+    } as Record<string, string>
+  )[rawTheme] ?? rawTheme;
+const isDarkSection = themeName === 'oliveGreen' || themeName === 'darkGreen';
+const isCreamSection = themeName === 'cream';
+
+const toImageSource = (img: any): SanityImageSource | undefined => {
+  if (!img) return undefined;
+  return { url: img.url, asset: img.asset, crop: img.crop, hotspot: img.hotspot };
+};
+
+const imageUrlFor = (img: any, width: number, height: number) => {
+  const source = toImageSource(img);
+  const url = img?.url ?? img?.asset?.url;
+  const built = source
+    ? buildSanityImageUrl(source, { width, height, fit: 'crop', quality: 76, format: 'webp' })
+    : '';
+  return built || optimizeImageUrl(url, { width, height, fit: 'crop', quality: 76, format: 'webp' });
+};
+---
+
+<section class={`bbg-section bbg-steps ${isDarkSection ? 'bbg-steps-dark' : isCreamSection ? 'bbg-steps-cream' : 'bbg-steps-light'}`}>
+  <div class="bbg-wrap">
+    {(props.title || props.subtitle) && (
+      <div class="bbg-steps-head">
+        <span class="bbg-steps-eyebrow">
+          <span class="bbg-steps-eyebrow-dot" aria-hidden="true"></span>
+          The process
+        </span>
+        {props.title && (
+          <h2 class="bbg-steps-title">
+            {titleSegments.map((segment) =>
+              segment.highlight ? (
+                <span class={isDarkSection ? 'bbg-steps-leaf-dark' : 'bbg-steps-leaf'}>{segment.text}</span>
+              ) : (
+                <span>{segment.text}</span>
+              )
+            )}
+          </h2>
+        )}
+        {props.subtitle && <p class="bbg-steps-desc">{props.subtitle}</p>}
+      </div>
+    )}
+
+    {steps.length > 0 && (
+      <ol class="bbg-steps-list" aria-label="Process steps">
+        {steps.map((step, index) => {
+          const position = step.imagePosition ?? (index % 2 === 0 ? 'left' : 'right');
+          const imageFirst = position === 'left';
+          const hasImage = Boolean(
+            step.image?.asset?.url || step.image?.url || step.image?.asset?._ref || step.image?.asset?._id,
+          );
+          const imgAlt = step.image?.alt ?? step.title ?? step.stepLabel ?? 'Step image';
+          const stepNumber = String(index + 1).padStart(2, '0');
+          const isLast = index === steps.length - 1;
+
+          return (
+            <li class={`bbg-steps-item ${imageFirst ? 'is-image-left' : 'is-image-right'} ${isLast ? 'is-last' : ''}`}>
+              {/* Step number column */}
+              <div class="bbg-steps-num-col" aria-hidden="true">
+                <span class="bbg-steps-num">{stepNumber}</span>
+                {!isLast && <span class="bbg-steps-rule"></span>}
+              </div>
+
+              {/* Card */}
+              <article class="bbg-steps-card">
+                {hasImage && (
+                  <div class={`bbg-steps-image ${imageFirst ? 'is-left' : 'is-right'}`}>
+                    <img
+                      src={imageUrlFor(step.image, 900, 720)}
+                      srcset={`${imageUrlFor(step.image, 600, 520)} 600w, ${imageUrlFor(step.image, 900, 720)} 900w, ${imageUrlFor(step.image, 1200, 900)} 1200w`}
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      alt={imgAlt}
+                      width="900"
+                      height="720"
+                      loading={index === 0 ? 'eager' : 'lazy'}
+                      decoding="async"
+                    />
+                  </div>
+                )}
+
+                <div class="bbg-steps-body">
+                  {/* The numbered timeline badge on the left ("01", "02"…)
+                      already shows the step number, so we no longer render
+                      the small inline pill from step.stepLabel — it was
+                      visual duplication. */}
+                  <div class="bbg-steps-card-head">
+                    {step.title && (
+                      <h3 class="bbg-steps-card-title">{step.title}</h3>
+                    )}
+                  </div>
+
+                  {step.description && (
+                    <p class="bbg-steps-card-desc">{step.description}</p>
+                  )}
+
+                  {step.bullets?.length > 0 && (
+                    <div class="bbg-steps-bullets-wrap">
+                      {(step as any).bulletsTitle && (
+                        <p class="bbg-steps-bullets-title">{(step as any).bulletsTitle}</p>
+                      )}
+                      <ul class="bbg-steps-bullets">
+                        {step.bullets.map((bullet) => (
+                          <li>
+                            <span class="bbg-steps-bullet-mark" aria-hidden="true">
+                              <svg viewBox="0 0 24 24" class="h-full w-full fill-current">
+                                <path d="M20.285 6.709a1 1 0 0 1 0 1.414l-9.192 9.192a1 1 0 0 1-1.414 0L3.715 11.35a1 1 0 1 1 1.414-1.414l4.043 4.043 8.485-8.485a1 1 0 0 1 1.414 0Z" />
+                              </svg>
+                            </span>
+                            <span>{bullet}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </article>
+            </li>
+          );
+        })}
+      </ol>
+    )}
+  </div>
+</section>
+
+<style>
+  .bbg-steps-light { background: var(--warm-white); }
+  .bbg-steps-cream { background: var(--sand-pale); }
+  .bbg-steps-dark  { background: var(--green-deep); color: var(--warm-white); }
+
+  /* === Head ======================================================== */
+  .bbg-steps-head {
+    text-align: center;
+    max-width: 920px;
+    margin: 0 auto 64px;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-steps-head { margin-bottom: 40px; }
+  }
+
+  .bbg-steps-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    /* Darker red variant — see tokens.css comment for the WCAG math. */
+    color: var(--emergency-text);
+    margin-bottom: 18px;
+  }
+
+  .bbg-steps-dark .bbg-steps-eyebrow { color: var(--sand-pale); }
+
+  /* Red accent dot per brand direction. */
+  .bbg-steps-eyebrow-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--emergency);
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.18);
+  }
+
+  .bbg-steps-dark .bbg-steps-eyebrow-dot {
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.32);
+  }
+
+  .bbg-steps-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-black);
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .bbg-steps-dark .bbg-steps-title { color: var(--warm-white); }
+
+  /* Unified highlight — red italic on light, sand-pale italic on dark. */
+  .bbg-steps-leaf {
+    display: inline-block;
+    color: var(--emergency);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+  .bbg-steps-leaf-dark {
+    display: inline-block;
+    color: var(--sand-pale);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+
+  .bbg-steps-desc {
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin-top: 16px;
+  }
+
+  .bbg-steps-dark .bbg-steps-desc { color: rgba(247, 245, 241, 0.92); }
+
+  /* === List ======================================================== */
+  .bbg-steps-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  /* === Item layout ================================================ */
+  .bbg-steps-item {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: 64px 1fr;
+    align-items: stretch;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-steps-item {
+      grid-template-columns: 48px 1fr;
+      gap: 16px;
+    }
+  }
+
+  /* Step number column */
+  .bbg-steps-num-col {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 12px;
+  }
+
+  .bbg-steps-num {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    color: var(--green-deep);
+    background: var(--warm-white);
+    border: 2px solid rgba(94, 127, 58, 0.32);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px -10px rgba(94, 127, 58, 0.4);
+    z-index: 1;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-steps-num {
+      width: 44px;
+      height: 44px;
+      font-size: 16px;
+    }
+  }
+
+  .bbg-steps-dark .bbg-steps-num {
+    background: var(--green-deep);
+    border-color: rgba(247, 245, 241, 0.55);
+    color: var(--warm-white);
+    box-shadow: 0 8px 18px -10px rgba(29, 29, 29, 0.4);
+  }
+
+  .bbg-steps-cream .bbg-steps-num {
+    background: var(--warm-white);
+  }
+
+  /* Vertical connecting rule */
+  .bbg-steps-rule {
+    flex: 1;
+    width: 2px;
+    background: linear-gradient(
+      to bottom,
+      rgba(94, 127, 58, 0.32) 0%,
+      rgba(94, 127, 58, 0.08) 100%
+    );
+    margin-top: 8px;
+    border-radius: 2px;
+  }
+
+  .bbg-steps-dark .bbg-steps-rule {
+    background: linear-gradient(
+      to bottom,
+      rgba(127, 163, 90, 0.4) 0%,
+      rgba(127, 163, 90, 0.08) 100%
+    );
+  }
+
+  /* === Card ======================================================== */
+  .bbg-steps-card {
+    background: var(--warm-white);
+    border: 1px solid rgba(29, 29, 29, 0.06);
+    border-radius: 24px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr;
+    box-shadow:
+      0 1px 0 rgba(29, 29, 29, 0.02),
+      0 18px 36px -22px rgba(29, 29, 29, 0.18);
+    transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 280ms ease, border-color 280ms ease;
+  }
+
+  .bbg-steps-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 28px 48px -22px rgba(29, 29, 29, 0.22);
+    border-color: rgba(94, 127, 58, 0.32);
+  }
+
+  .bbg-steps-dark .bbg-steps-card {
+    background: rgba(247, 245, 241, 0.06);
+    border-color: rgba(247, 245, 241, 0.12);
+    box-shadow: none;
+    backdrop-filter: blur(2px);
+  }
+
+  .bbg-steps-cream .bbg-steps-card {
+    background: var(--warm-white);
+  }
+
+  @media (min-width: 880px) {
+    .bbg-steps-card {
+      grid-template-columns: 1fr 1.1fr;
+    }
+
+    .bbg-steps-item.is-image-left .bbg-steps-image { grid-column: 1; }
+    .bbg-steps-item.is-image-left .bbg-steps-body  { grid-column: 2; }
+
+    .bbg-steps-item.is-image-right .bbg-steps-image { grid-column: 2; grid-row: 1; }
+    .bbg-steps-item.is-image-right .bbg-steps-body  { grid-column: 1; grid-row: 1; }
+  }
+
+  /* Image */
+  .bbg-steps-image {
+    background: var(--sand-pale);
+    min-height: 240px;
+    overflow: hidden;
+  }
+
+  .bbg-steps-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  @media (max-width: 879px) {
+    .bbg-steps-image {
+      min-height: 220px;
+    }
+  }
+
+  /* Body */
+  .bbg-steps-body {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    justify-content: center;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-steps-body {
+      padding: 24px;
+    }
+  }
+
+  .bbg-steps-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .bbg-steps-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(94, 127, 58, 0.12);
+    color: var(--green-deep);
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .bbg-steps-dark .bbg-steps-pill {
+    background: var(--sand-pale);
+    color: var(--green-deep);
+  }
+
+  .bbg-steps-card-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(22px, 2.6vw, 30px);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--ink-black);
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .bbg-steps-dark .bbg-steps-card-title { color: var(--warm-white); }
+
+  /* Body text — unified scale across all sections */
+  .bbg-steps-card-desc {
+    font-family: var(--font-body);
+    font-size: clamp(15px, 1.1vw, 16px);
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .bbg-steps-dark .bbg-steps-card-desc { color: rgba(247, 245, 241, 0.92); }
+
+  /* Bullets wrapper (title + list) */
+  .bbg-steps-bullets-wrap {
+    margin: 6px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bbg-steps-bullets-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(14px, 1vw, 15px);
+    color: var(--ink-black);
+    letter-spacing: -0.005em;
+  }
+
+  .bbg-steps-dark .bbg-steps-bullets-title { color: var(--warm-white); }
+
+  /* Bullets */
+  .bbg-steps-bullets {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bbg-steps-bullets li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-family: var(--font-body);
+    font-size: clamp(15px, 1.1vw, 16px);
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+
+  .bbg-steps-dark .bbg-steps-bullets li { color: rgba(247, 245, 241, 0.92); }
+
+  /* Mobile: bullets always left-align, even inside centered step cards. */
+  @media (max-width: 767px) {
+    .bbg-steps-bullets-wrap {
+      align-self: stretch;
+      width: 100%;
+      text-align: left;
+    }
+    .bbg-steps-bullets-title { text-align: left; }
+    .bbg-steps-bullets { align-items: flex-start; }
+    .bbg-steps-bullets li { text-align: left; }
+  }
+
+  .bbg-steps-bullet-mark {
+    flex-shrink: 0;
+    margin-top: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(94, 127, 58, 0.16);
+    color: var(--green-deep);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .bbg-steps-bullet-mark svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  /* Sand-pale fill so red icon hits 5.6:1 contrast against the chip itself,
+     not just the section bg (red on green-deep would be ~1.2:1 = fail). */
+  .bbg-steps-dark .bbg-steps-bullet-mark {
+    background: var(--sand-pale);
+    box-shadow: inset 0 0 0 1.5px var(--emergency);
+    color: var(--emergency);
+  }
+
+  /* === Option C: Active-step focus animation =====================
+     The original design dimmed inactive items to opacity: 0.35 — that
+     composites the number badge's red text down to a ~1.4:1 ratio
+     against the section background, which is what Lighthouse correctly
+     kept flagging on "01 / 02 / 03". Same root cause as the filter
+     blur on the cards. WCAG opacity rule: visible text must clear AA
+     at its painted contrast, including any opacity multiplier above it.
+
+     New approach: keep the focus shift purely via transform + scale
+     (no opacity, no filter). The active step lifts and grows slightly;
+     others stay readable in place. Visual hierarchy preserved without
+     the accessibility hit. */
+  .bbg-steps-item {
+    opacity: 1;
+    transform: translateY(0) scale(0.985);
+    transition:
+      transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* Active state — slight pop via transform/scale only. */
+  .bbg-steps-item.is-active {
+    transform: translateY(-2px) scale(1);
+  }
+
+  /* Card sharpens visually when active — strong filter shift + lift. */
+  /* The "focus active step" effect used to use filter: saturate(0.6)
+     blur(0.4px) on inactive cards — Lighthouse correctly flagged that as
+     a contrast failure across every text element in the steps cards
+     (blur smears foreground into background, so the contrast sampler
+     reads a degraded ratio). The visual focus shift now comes from the
+     transform offset on the active card only — no blur, no desaturate. */
+  .bbg-steps-item .bbg-steps-card {
+    transition:
+      transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 480ms ease;
+  }
+  .bbg-steps-item.is-active .bbg-steps-card {
+    transform: translateY(-4px);
+  }
+
+  /* Number badge pops when active — color, scale, glow. */
+  .bbg-steps-item .bbg-steps-num {
+    transition:
+      color 420ms ease,
+      transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      text-shadow 420ms ease;
+  }
+  .bbg-steps-item.is-active .bbg-steps-num {
+    transform: scale(1.06);
+    /* Was --emergency (#C84545) — that 22px-but-16px-on-mobile number
+       fails AA on warm-white at the mobile size. --emergency-text
+       (#A82929) clears 6.2:1 on cream so it passes at every size. */
+    color: var(--emergency-text);
+    text-shadow: 0 0 24px rgba(168, 41, 41, 0.18);
+  }
+  .bbg-steps-dark .bbg-steps-item.is-active .bbg-steps-num {
+    color: var(--sand-pale);
+    text-shadow: 0 0 28px rgba(236, 227, 212, 0.28);
+  }
+
+  /* Connecting rule between numbers — fills with red as user passes. */
+  .bbg-steps-item .bbg-steps-rule {
+    position: relative;
+    overflow: hidden;
+  }
+  .bbg-steps-item .bbg-steps-rule::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, var(--emergency) 0%, var(--emergency) 100%);
+    opacity: 0;
+    transition: opacity 520ms ease;
+  }
+  .bbg-steps-item.is-active .bbg-steps-rule::after {
+    opacity: 0.65;
+  }
+
+  /* Respect reduced-motion preferences. */
+  @media (prefers-reduced-motion: reduce) {
+    .bbg-steps-item,
+    .bbg-steps-item .bbg-steps-card,
+    .bbg-steps-item .bbg-steps-num,
+    .bbg-steps-item .bbg-steps-rule::after {
+      transition: none;
+    }
+    .bbg-steps-item { opacity: 1; transform: none; }
+  }
+
+  /* Mobile (touch + narrow viewport): the user scrolls fast and the
+     center-band logic may flicker. Soften the dim so off-screen cards
+     don't feel "broken." */
+  @media (max-width: 767px) {
+    .bbg-steps-item { opacity: 0.7; }
+    .bbg-steps-item.is-active .bbg-steps-card { transform: none; }
+  }
+</style>
+
+<script type="module" is:inline>
+  (() => {
+    const init = () => {
+      const items = document.querySelectorAll('.bbg-steps-item');
+      if (!items.length || !('IntersectionObserver' in window)) {
+        // Fallback: show all as active so content is never dim if JS/IO fails.
+        items.forEach((el) => el.classList.add('is-active'));
+        return;
+      }
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            entry.target.classList.toggle('is-active', entry.isIntersecting);
+          });
+        },
+        {
+          // Trigger when the card crosses the middle 50% of the viewport
+          // — that's the "focus band". Top/bottom 25% counts as resting.
+          rootMargin: '-25% 0px -25% 0px',
+          threshold: 0,
+        },
+      );
+
+      items.forEach((el) => observer.observe(el));
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>

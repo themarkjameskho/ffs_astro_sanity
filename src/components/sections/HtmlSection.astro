@@ -1,0 +1,339 @@
+---
+/**
+ * HtmlSection — v5-modern light-section container for raw HTML/embed content.
+ *
+ * Same Sanity props (title, subtitle, htmlContent). Heading is centered
+ * by design rule: any single-column section centers its heading.
+ *
+ * Performance: third-party <script> tags embedded in the Sanity htmlContent
+ * (Google Reviews widget, Local Impact badge, etc.) are extracted at SSR
+ * time and re-injected client-side only when the section scrolls into view.
+ * Without this, the reviewsonmywebsite.com embed adds a 1.8s critical
+ * chain to first load (transitively pulls localimpact.com, romw-cdn.co,
+ * and New Relic). Lazy-loading defers that cost until the user actually
+ * gets near the reviews section.
+ */
+import type { HtmlSection } from '../../types/sections';
+import { splitHighlight } from '../../utils/highlightTitle';
+
+const props = Astro.props as HtmlSection;
+const titleSegments = props.title ? splitHighlight(props.title, (props as any).highlightText) : [];
+
+/**
+ * Strip <script src="..."> tags from a slow-3rd-party domain out of the
+ * raw HTML and return both the cleaned HTML and the list of script URLs
+ * we extracted. We re-inject the scripts client-side on
+ * IntersectionObserver fire.
+ *
+ * Inline <script>foo()</script> tags are left alone — those are
+ * almost always small initializers, not the heavy embeds.
+ */
+const SLOW_THIRD_PARTY_HOSTS = [
+  'reviewsonmywebsite.com',
+  'localimpact.com',
+  'cdn.callreports.com', // CallRail external_forms.js (legacy JS polyfills)
+  'cdnjs.cloudflare.com/ajax/libs/font-awesome',
+  'cdnjs.cloudflare.com/ajax/libs/Swiper'
+];
+
+function extractDeferrableScripts(html: string): { cleanedHtml: string; deferredSrcs: string[] } {
+  if (!html) return { cleanedHtml: html, deferredSrcs: [] };
+  const deferredSrcs: string[] = [];
+  // Match <script ... src="..."></script> (with anything between, attrs in any order).
+  const scriptTagRe = /<script\b[^>]*\bsrc\s*=\s*['"]([^'"]+)['"][^>]*>\s*<\/script>/gi;
+  const cleanedHtml = html.replace(scriptTagRe, (match, src) => {
+    const isSlow = SLOW_THIRD_PARTY_HOSTS.some((host) => src.includes(host));
+    if (isSlow) {
+      deferredSrcs.push(src);
+      return ''; // drop the tag from initial HTML; we'll inject on scroll
+    }
+    return match; // leave fast/critical scripts alone
+  });
+  return { cleanedHtml, deferredSrcs };
+}
+
+const { cleanedHtml, deferredSrcs } = props.htmlContent
+  ? extractDeferrableScripts(props.htmlContent)
+  : { cleanedHtml: '', deferredSrcs: [] };
+
+const hasDeferredScripts = deferredSrcs.length > 0;
+// Serialize the script list as a JSON string we can read from the
+// client-side IntersectionObserver. data-* attributes are stringly typed
+// so JSON is the cleanest carrier.
+const deferredSrcsJson = JSON.stringify(deferredSrcs);
+---
+
+<section
+  class="bbg-section bbg-html bbg-html-light"
+  data-html-section
+  data-deferred-scripts={hasDeferredScripts ? deferredSrcsJson : undefined}
+>
+  <div class="bbg-wrap">
+    {(props.title || props.subtitle) && (
+      <div class="bbg-html-head">
+        {props.title && (
+          <h2 class="bbg-html-title">
+            {titleSegments.map((segment) =>
+              segment.highlight ? (
+                <span class="bbg-html-leaf">{segment.text}</span>
+              ) : (
+                <span>{segment.text}</span>
+              )
+            )}
+          </h2>
+        )}
+        {props.subtitle && <p class="bbg-html-sub">{props.subtitle}</p>}
+      </div>
+    )}
+
+    {cleanedHtml && (
+      <div
+        class="html-section-content prose prose-sm md:prose-base max-w-none"
+        set:html={cleanedHtml}
+      />
+    )}
+  </div>
+</section>
+
+{hasDeferredScripts && (
+  <script is:inline>
+    /**
+     * Lazy-load any HtmlSection's deferred third-party scripts on scroll.
+     * Uses IntersectionObserver with a generous rootMargin so the scripts
+     * start loading slightly BEFORE the section is in view, giving them
+     * time to render by the time the user scrolls to them.
+     */
+    (() => {
+      const sections = document.querySelectorAll('[data-html-section][data-deferred-scripts]');
+      if (!sections.length) return;
+
+      // Inject a single script tag. We rely on the browser's normal
+      // src-loading semantics; reviewsonmywebsite.com's embedLoader will
+      // pick up the placeholder div in the DOM on its own.
+      function inject(src) {
+        if (document.querySelector(`script[src="${src}"]`)) return; // already injected
+        const s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        document.body.appendChild(s);
+      }
+
+      const observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const el = entry.target;
+          let srcs = [];
+          try {
+            srcs = JSON.parse(el.getAttribute('data-deferred-scripts') || '[]');
+          } catch (err) {
+            console.warn('HtmlSection: bad data-deferred-scripts JSON', err);
+          }
+          srcs.forEach(inject);
+          observer.unobserve(el);
+        }
+      }, {
+        // Start loading 400px before the section enters the viewport so
+        // the widget has time to render before the user actually sees it.
+        rootMargin: '400px 0px',
+        threshold: 0
+      });
+
+      sections.forEach((s) => observer.observe(s));
+    })();
+  </script>
+)}
+
+<style>
+  .bbg-html-light { background: var(--warm-white); }
+
+  /* Centered heading — single-column section rule. */
+  .bbg-html-head {
+    max-width: 720px;
+    margin: 0 auto 48px;
+    text-align: center;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-html-head { margin-bottom: 32px; }
+  }
+
+  .bbg-html-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-black);
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  /* Unified highlight — red italic. */
+  .bbg-html-leaf {
+    display: inline-block;
+    color: var(--emergency);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+
+  .bbg-html-sub {
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin: 16px 0 0;
+  }
+
+  /* === Embedded HTML content styling (scoped) ====================== */
+  :global(.html-section-content) {
+    --prose-body: var(--ink-soft);
+    --prose-headings: var(--ink-black);
+    --prose-links: var(--green-deep);
+  }
+
+  :global(.html-section-content h1),
+  :global(.html-section-content h2),
+  :global(.html-section-content h3),
+  :global(.html-section-content h4),
+  :global(.html-section-content h5),
+  :global(.html-section-content h6) {
+    color: var(--prose-headings);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    letter-spacing: -0.015em;
+  }
+
+  :global(.html-section-content h1) { font-size: 1.875rem; }
+  :global(.html-section-content h2) { font-size: 1.5rem; }
+  :global(.html-section-content h3) { font-size: 1.25rem; }
+
+  :global(.html-section-content p) {
+    margin-bottom: 1em;
+    line-height: 1.7;
+    color: var(--prose-body);
+  }
+
+  :global(.html-section-content a) {
+    color: var(--prose-links);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1.5px;
+    transition: color 160ms ease;
+  }
+
+  :global(.html-section-content a:hover) {
+    color: var(--green-hover);
+  }
+
+  :global(.html-section-content ul),
+  :global(.html-section-content ol) {
+    margin-bottom: 1em;
+    padding-left: 1.5em;
+  }
+
+  :global(.html-section-content li) {
+    margin-bottom: 0.4em;
+    line-height: 1.6;
+  }
+
+  :global(.html-section-content code) {
+    background-color: var(--sand-pale);
+    color: var(--ink-black);
+    padding: 0.15em 0.4em;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.92em;
+  }
+
+  :global(.html-section-content pre) {
+    background-color: var(--green-deep);
+    color: var(--warm-white);
+    padding: 1.25em 1.5em;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin-bottom: 1em;
+  }
+
+  :global(.html-section-content pre code) {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+  }
+
+  :global(.html-section-content table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1em;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(29, 29, 29, 0.08);
+  }
+
+  :global(.html-section-content th),
+  :global(.html-section-content td) {
+    border-bottom: 1px solid rgba(29, 29, 29, 0.08);
+    padding: 0.85em 1em;
+    text-align: left;
+  }
+
+  :global(.html-section-content tr:last-child td) {
+    border-bottom: 0;
+  }
+
+  :global(.html-section-content th) {
+    background-color: var(--sand-pale);
+    color: var(--ink-black);
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+
+  :global(.html-section-content details) {
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(29, 29, 29, 0.08);
+    background: var(--warm-white);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 220ms ease;
+  }
+
+  :global(.html-section-content details:hover) {
+    border-color: rgba(94, 127, 58, 0.32);
+  }
+
+  :global(.html-section-content summary) {
+    list-style: none;
+    cursor: pointer;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    color: var(--ink-black);
+    padding: 0.85rem 1.1rem;
+    transition: color 180ms ease, background 180ms ease;
+  }
+
+  :global(.html-section-content summary::-webkit-details-marker) {
+    display: none;
+  }
+
+  :global(.html-section-content details[open] summary),
+  :global(.html-section-content summary:hover) {
+    color: var(--green-deep);
+    background: var(--sand-pale);
+  }
+
+  :global(.html-section-content details > :not(summary)) {
+    padding: 0 1.1rem 1rem;
+  }
+
+  :global(.html-section-content blockquote) {
+    border-left: 3px solid var(--green-primary);
+    padding: 0.5em 1em;
+    margin: 1em 0;
+    color: var(--ink-soft);
+    font-style: italic;
+    background: var(--sand-pale);
+    border-radius: 0 8px 8px 0;
+  }
+</style>

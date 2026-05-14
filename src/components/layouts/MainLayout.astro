@@ -1,0 +1,2756 @@
+---
+// Import critical CSS inline and global CSS
+import criticalCss from "../../styles/critical.css?inline";
+import "../../styles/global.css";
+import { Image } from "astro:assets";
+import {{brand_slug}}LogoAsset from "../../assets/{{brand_slug}}_logo.png";
+import { buildCanonicalUrl, PREFERRED_SITE_ORIGIN } from "../../lib/canonical";
+import { fetchMenuLinksByPageType } from "../../lib/queries/menuLinks";
+import { fetchAllPageSlugs } from "../../lib/queries/allPages";
+
+interface Props {
+  pageTitle?: string;
+  description?: string;
+  heroPreloadUrl?: string;
+  heroPreloadSrcSet?: string;
+  heroPreloadUrlMobile?: string;
+  heroPreloadSrcSetMobile?: string;
+  heroPreloadSizesMobile?: string;
+  canonicalUrl?: string;
+}
+
+const {
+  pageTitle = "{{BRAND_NAME}}",
+  description = "Get Your Sleep Back!",
+  heroPreloadUrl = "",
+  heroPreloadSrcSet = "",
+  heroPreloadUrlMobile = "",
+  heroPreloadSrcSetMobile = "",
+  heroPreloadSizesMobile = "",
+  canonicalUrl,
+} = Astro.props as Props;
+const brandLogoPath = "/images/bed-bugs-be-gone-now-logo.png";
+
+const canonicalHref = buildCanonicalUrl({
+  pathname: Astro.url.pathname,
+  override: canonicalUrl,
+  trailingSlash: "always",
+  lowercase: true,
+});
+
+type MenuLinkLike = { label: string; href: string };
+type PageTypeKey = "service-area" | "bed-bug-treatment";
+type TopLevelMenuItem = { slug: string; label: string; href: string; children?: MenuLinkLike[] };
+type FooterServiceLink = MenuLinkLike & { children?: MenuLinkLike[] };
+const MENU_FETCH_TIMEOUT_MS = 1000;
+const NAV_CACHE_TTL_MS = import.meta.env.DEV ? 15_000 : 60_000;
+const EXCLUDED_HEADER_SLUGS = new Set([
+  "privacy-policy",
+  "terms-of-service",
+  "terms-of-use",
+  "terms-and-conditions"
+]);
+
+const FALLBACK_DESKTOP_NAV: TopLevelMenuItem[] = [
+  { slug: "bed-bug-treatment", label: "Bed Bug Treatment", href: "/bed-bug-treatment/" },
+  { slug: "service-area", label: "Service Area", href: "/service-area/" },
+  { slug: "contact-us", label: "Contact Us", href: "/contact-us/" },
+  { slug: "blog", label: "Blog", href: "/blog/" }
+];
+const FALLBACK_SERVICE_AREAS: MenuLinkLike[] = [];
+const FALLBACK_TREATMENT_CHILDREN: MenuLinkLike[] = [];
+
+const normalizeHref = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "/") return "/";
+  return `/${trimmed.replace(/^\/+/, "").replace(/\/+$/, "")}/`;
+};
+
+const currentPath = normalizeHref(Astro.url.pathname);
+
+const isActiveHref = (href: string) => {
+  const normalizedHref = normalizeHref(href);
+  if (normalizedHref === "/") return currentPath === "/";
+  return currentPath === normalizedHref || currentPath.startsWith(normalizedHref);
+};
+
+const slugDepth = (slug: string) => slug.split("/").filter(Boolean).length;
+
+const withTimedSanityFetch = async <T>(
+  label: string,
+  fallback: T,
+  loader: (signal: AbortSignal) => Promise<T>
+) => {
+  const controller = new AbortController();
+  const timeoutPromise = new Promise<T>((resolve) => {
+    setTimeout(() => {
+      controller.abort();
+      console.warn(`MainLayout ${label} fetch timed out after ${MENU_FETCH_TIMEOUT_MS}ms; using fallback`);
+      resolve(fallback);
+    }, MENU_FETCH_TIMEOUT_MS);
+  });
+  try {
+    const loaderPromise = loader(controller.signal).catch((error) => {
+      console.warn(`MainLayout ${label} fetch failed; using fallback`, error);
+      return fallback;
+    });
+    return await Promise.race([loaderPromise, timeoutPromise]);
+  } catch (error) {
+    console.warn(`MainLayout ${label} fetch failed; using fallback`, error);
+    return fallback;
+  }
+};
+
+type NavSnapshot = {
+  allPageEntries: Awaited<ReturnType<typeof fetchAllPageSlugs>>;
+  cmsServiceAreaPages: MenuLinkLike[];
+  cmsTreatmentPages: MenuLinkLike[];
+};
+
+type GlobalNavCache = {
+  __BBGN_MENU_CACHE__?: {
+    expiresAt: number;
+    snapshot: NavSnapshot;
+  };
+};
+
+const globalNavCache = globalThis as typeof globalThis & GlobalNavCache;
+
+const loadNavSnapshot = async (): Promise<NavSnapshot> => {
+  const cached = globalNavCache.__BBGN_MENU_CACHE__;
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.snapshot;
+  }
+
+  const [allPageEntries, cmsServiceAreaPages, cmsTreatmentPages] = await Promise.all([
+    withTimedSanityFetch("all-page-slugs", [], (signal) => fetchAllPageSlugs({ signal })),
+    withTimedSanityFetch("service-area-menu", [], (signal) =>
+      fetchMenuLinksByPageType("service-area", { signal })
+    ),
+    withTimedSanityFetch("bed-bug-treatment-menu", [], (signal) =>
+      fetchMenuLinksByPageType("bed-bug-treatment", { signal })
+    )
+  ]);
+
+  const snapshot: NavSnapshot = {
+    allPageEntries,
+    cmsServiceAreaPages,
+    cmsTreatmentPages
+  };
+
+  globalNavCache.__BBGN_MENU_CACHE__ = {
+    expiresAt: Date.now() + NAV_CACHE_TTL_MS,
+    snapshot
+  };
+
+  return snapshot;
+};
+
+const { allPageEntries, cmsServiceAreaPages, cmsTreatmentPages } = await loadNavSnapshot();
+
+const existingRouteHrefs = new Set(
+  allPageEntries.map((entry) => {
+    const normalizedSlug = (entry.slug ?? "").trim();
+    return normalizedSlug ? normalizeHref(normalizedSlug) : "/";
+  })
+);
+existingRouteHrefs.add("/");
+
+const resolveMenuHref = (href: string, pageType: PageTypeKey) => {
+  const normalized = normalizeHref(href);
+  const normalizedSlug = normalized === "/" ? "" : normalized.slice(1, -1);
+  const segments = normalizedSlug.split("/").filter(Boolean);
+
+  const candidates = [normalized];
+
+  if (segments.length === 1) {
+    candidates.push(normalizeHref(`/${pageType}/${segments[0]}/`));
+  } else if (segments[0] === pageType) {
+    const leaf = segments[segments.length - 1];
+    candidates.push(normalizeHref(`/${leaf}/`));
+  }
+
+  for (const candidate of candidates) {
+    if (existingRouteHrefs.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+};
+
+const dedupeLinksByHref = (items: MenuLinkLike[]) => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.href)) return false;
+    seen.add(item.href);
+    return true;
+  });
+};
+
+const toValidDropdownLinks = (items: MenuLinkLike[], pageType: PageTypeKey) =>
+  dedupeLinksByHref(
+    items
+      .map((item) => {
+        const resolvedHref = resolveMenuHref(item.href, pageType);
+        if (!resolvedHref) return null;
+        return { ...item, href: resolvedHref };
+      })
+      .filter((item): item is MenuLinkLike => Boolean(item?.label) && Boolean(item?.href))
+  );
+
+for (const item of FALLBACK_DESKTOP_NAV) {
+  existingRouteHrefs.add(item.href);
+}
+
+const cmsServiceAreaChildren = cmsServiceAreaPages.filter((item) => item.href !== "/service-area/");
+const validServiceAreas = toValidDropdownLinks(cmsServiceAreaChildren, "service-area");
+const serviceAreas = validServiceAreas.length > 0 ? validServiceAreas : FALLBACK_SERVICE_AREAS;
+
+// Featured cities for the header dropdown — matches the live {{BRAND_ABBREV}} site's
+// nav so users see a clean, scannable list instead of all ~30 SEO
+// landing pages. The full list still lives at /service-area/ and is
+// reachable via the "View all locations" entry appended below.
+const FEATURED_NAV_SERVICE_AREA_SLUGS = new Set([
+  "arlington-heights-il",
+  "chicago-il",
+  "evanston-il",
+  "kenosha-wi",
+  "milwaukee-wi",
+  "naperville-il",
+  "racine-wi",
+  "schaumburg-il",
+  "waukegan-il",
+  "zion-il"
+]);
+const featuredOrder = Array.from(FEATURED_NAV_SERVICE_AREA_SLUGS);
+const navServiceAreasFiltered = serviceAreas
+  .filter((area) => {
+    const slug = area.href.replace(/^\/service-area\//, "").replace(/\/$/, "");
+    return FEATURED_NAV_SERVICE_AREA_SLUGS.has(slug);
+  })
+  .sort((a, b) => {
+    const slugA = a.href.replace(/^\/service-area\//, "").replace(/\/$/, "");
+    const slugB = b.href.replace(/^\/service-area\//, "").replace(/\/$/, "");
+    return featuredOrder.indexOf(slugA) - featuredOrder.indexOf(slugB);
+  });
+// Fall back to the full unfiltered list if Sanity is missing every featured
+// city — better an oversized dropdown than an empty one.
+const navServiceAreas: MenuLinkLike[] =
+  navServiceAreasFiltered.length > 0 ? navServiceAreasFiltered : serviceAreas;
+
+const cmsTreatmentChildren = cmsTreatmentPages.filter((item) => item.href !== "/bed-bug-treatment/");
+const validTreatmentChildren = toValidDropdownLinks(cmsTreatmentChildren, "bed-bug-treatment");
+const treatmentChildren =
+  validTreatmentChildren.length > 0 ? validTreatmentChildren : FALLBACK_TREATMENT_CHILDREN;
+
+const bedBugTreatmentOverviewHref =
+  resolveMenuHref("/bed-bug-treatment/", "bed-bug-treatment") ?? "/bed-bug-treatment/";
+const filteredTreatmentChildren = treatmentChildren.filter(
+  (item) => normalizeHref(item.href) !== bedBugTreatmentOverviewHref
+);
+
+const preferredTopLevelOrder = ["bed-bug-treatment", "service-area", "blog", "contact-us"];
+const priorityBySlug = new Map(preferredTopLevelOrder.map((slug, index) => [slug, index]));
+
+const topLevelCmsPages = allPageEntries
+  .filter((entry) => Boolean(entry.slug) && Boolean(entry.title))
+  .filter((entry) => (entry.slug ?? "") !== "home")
+  .filter((entry) => slugDepth(entry.slug ?? "") === 1)
+  .map((entry) => {
+    const slug = (entry.slug ?? "").trim().toLowerCase();
+    return {
+      slug,
+      label: (entry.title ?? "").trim(),
+      href: normalizeHref(slug)
+    };
+  })
+  .filter((entry) => !EXCLUDED_HEADER_SLUGS.has(entry.slug))
+  .filter((entry) => Boolean(entry.label) && existingRouteHrefs.has(entry.href))
+  .filter((entry, index, array) => array.findIndex((candidate) => candidate.href === entry.href) === index)
+  .sort((a, b) => {
+    const aPriority = priorityBySlug.get(a.slug) ?? Number.MAX_SAFE_INTEGER;
+    const bPriority = priorityBySlug.get(b.slug) ?? Number.MAX_SAFE_INTEGER;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    return a.label.localeCompare(b.label);
+  });
+
+const decorateTopLevelNav = (item: TopLevelMenuItem): TopLevelMenuItem => {
+  if (item.slug === "bed-bug-treatment") {
+    return { ...item, href: bedBugTreatmentOverviewHref, children: filteredTreatmentChildren };
+  }
+
+  if (item.slug === "service-area") {
+    return { ...item, children: navServiceAreas };
+  }
+
+  return item;
+};
+
+const desktopNavItems: TopLevelMenuItem[] =
+  topLevelCmsPages.length > 0
+    ? topLevelCmsPages.map(decorateTopLevelNav)
+    : FALLBACK_DESKTOP_NAV.map(decorateTopLevelNav);
+
+// Keep mobile menu behavior, but drive it from validated CMS nav data.
+const MOBILE_NAV: TopLevelMenuItem[] = [{ slug: "home", label: "Home", href: "/" }, ...desktopNavItems];
+const quickLinks = [
+  { label: "Home", href: "/" },
+  { label: "Service Area", href: "/service-area/" },
+  { label: "Contact Us", href: "/contact-us/" },
+  { label: "Blog", href: "/blog/" },
+];
+const footerServiceLinks: FooterServiceLink[] = [
+  {
+    label: "Bed Bug Treatment",
+    href: "/bed-bug-treatment/",
+    children: [
+      { label: "Heat Treatment", href: "/bed-bug-treatment/heat-extermination/" },
+      { label: "Conventional Treatment", href: "/bed-bug-treatment/conventional-extermination/" },
+      { label: "Aprehend", href: "/bed-bug-treatment/aprehend-extermination/" }
+    ]
+  }
+];
+// Resolve the canonical terms link. Live URL is /terms-of-service/, which
+// is what we prefer. Older `terms-of-use` / `terms-and-conditions` slugs
+// are kept as fallbacks until the Sanity doc rename ships, and then a
+// 301 in vercel.json catches anyone hitting the old URL anyway.
+const termsHref = existingRouteHrefs.has("/terms-of-service/")
+  ? "/terms-of-service/"
+  : existingRouteHrefs.has("/terms-of-use/")
+    ? "/terms-of-use/"
+    : existingRouteHrefs.has("/terms-and-conditions/")
+      ? "/terms-and-conditions/"
+      : "/terms-of-service/";
+
+// Detect if we're on the homepage. The full @graph schema below is
+// homepage-specific (BreadcrumbList has only "Home", WebPage @id is
+// the root URL, etc.), so it must only render on `/`. On every other
+// page we emit a slimmer Organization-only schema instead.
+const pathname = Astro.url?.pathname ?? "/";
+const isHomePage = pathname === "/" || pathname === "";
+
+// Homepage schema: full @graph with LocalBusiness, Services, OfferCatalog,
+// WebSite, WebPage, BreadcrumbList, and FAQPage. Mirrors the structure
+// served on the legacy WordPress site so Google sees a continuous
+// schema graph through the DNS cutover.
+const homepageSchema = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": ["LocalBusiness", "HomeAndConstructionBusiness"],
+      "@id": "{{SITE_URL}}/#localbusiness",
+      name: "{{BRAND_NAME}}",
+      alternateName: "{{BRAND_ABBREV}}",
+      url: "{{SITE_URL}}/",
+      logo: {
+        "@type": "ImageObject",
+        "@id": "{{SITE_URL}}/#logo",
+        url: "{{SITE_URL}}/wp-content/uploads/2025/06/cropped-{{BRAND_ABBREV}}-logo.png",
+        contentUrl: "{{SITE_URL}}/wp-content/uploads/2025/06/cropped-{{BRAND_ABBREV}}-logo.png"
+      },
+      image: { "@id": "{{SITE_URL}}/#logo" },
+      description: "{{BRAND_NAME}} provides professional bed bug extermination and bed bug treatment services, including 1-day heat treatment, Aprehend bio-pesticide treatment, and conventional chemical treatment.",
+      slogan: "Sleep Tight, We Fight Bed Bugs Right!",
+      category: "Pest control service",
+      additionalType: "https://www.productontology.org/id/Pest_control",
+      naics: "561710",
+      telephone: "{{PHONE_MAIN_DASHED}}",
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          telephone: "{{PHONE_MAIN_DASHED}}",
+          contactType: "customer service",
+          areaServed: "US",
+          availableLanguage: "English"
+        },
+        {
+          "@type": "ContactPoint",
+          telephone: "{{PHONE_PRIMARY_DASHED}}",
+          contactType: "Illinois service line",
+          areaServed: { "@type": "State", name: "Illinois" },
+          availableLanguage: "English"
+        },
+        {
+          "@type": "ContactPoint",
+          telephone: "{{PHONE_SECONDARY_DASHED}}",
+          contactType: "Wisconsin service line",
+          areaServed: { "@type": "State", name: "Wisconsin" },
+          availableLanguage: "English"
+        }
+      ],
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "{{NAP_STREET_ADDRESS}}",
+        addressLocality: "{{NAP_CITY}}",
+        addressRegion: "IL",
+        postalCode: "{{NAP_ZIP}}",
+        addressCountry: "US"
+      },
+      geo: {
+        "@type": "GeoCoordinates",
+        latitude: {{NAP_LATITUDE}},
+        longitude: {{NAP_LONGITUDE}}
+      },
+      hasMap: "https://www.google.com/maps/search/?api=1&query={{NAP_LATITUDE}},{{NAP_LONGITUDE}}",
+      openingHours: ["Mo-Fr 08:00-18:00", "Sa 08:00-16:00"],
+      openingHoursSpecification: [
+        {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          opens: "08:00",
+          closes: "18:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: "Saturday",
+          opens: "08:00",
+          closes: "16:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: "Sunday",
+          opens: "00:00",
+          closes: "00:00"
+        }
+      ],
+      areaServed: [
+        { "@type": "Place", name: "Peoria, IL, USA" },
+        { "@type": "Place", name: "Chicago, IL, USA" },
+        { "@type": "Place", name: "Palatine, IL, USA" },
+        { "@type": "Place", name: "Rockford, IL, USA" },
+        { "@type": "Place", name: "Inverness, IL, USA" },
+        { "@type": "Place", name: "Schaumburg, IL, USA" },
+        { "@type": "Place", name: "Hoffman Estates, IL, USA" },
+        { "@type": "Place", name: "Rolling Meadows, IL, USA" },
+        { "@type": "Place", name: "Arlington Heights, IL, USA" }
+      ],
+      knowsAbout: [
+        "bed bug extermination",
+        "bed bug heat treatment",
+        "1-day bed bug treatment",
+        "Aprehend bed bug treatment",
+        "conventional chemical bed bug treatment",
+        "bed bug removal",
+        "pest control"
+      ],
+      hasOfferCatalog: { "@id": "{{SITE_URL}}/#bed-bug-treatment-services" },
+      makesOffer: [
+        { "@id": "{{SITE_URL}}/#offer-heat-treatment" },
+        { "@id": "{{SITE_URL}}/#offer-aprehend-treatment" },
+        { "@id": "{{SITE_URL}}/#offer-conventional-treatment" }
+      ],
+      mainEntityOfPage: { "@id": "{{SITE_URL}}/#webpage" }
+    },
+    {
+      "@type": "OfferCatalog",
+      "@id": "{{SITE_URL}}/#bed-bug-treatment-services",
+      name: "Bed Bug Treatment Services",
+      itemListElement: [
+        { "@id": "{{SITE_URL}}/#offer-heat-treatment" },
+        { "@id": "{{SITE_URL}}/#offer-aprehend-treatment" },
+        { "@id": "{{SITE_URL}}/#offer-conventional-treatment" }
+      ]
+    },
+    {
+      "@type": "Offer",
+      "@id": "{{SITE_URL}}/#offer-heat-treatment",
+      name: "1-Day Bed Bug Heat Treatment",
+      url: "{{SITE_URL}}/bed-bug-treatment/heat-extermination/",
+      offeredBy: { "@id": "{{SITE_URL}}/#localbusiness" },
+      itemOffered: { "@id": "{{SITE_URL}}/#service-heat-treatment" }
+    },
+    {
+      "@type": "Offer",
+      "@id": "{{SITE_URL}}/#offer-aprehend-treatment",
+      name: "Aprehend Bio-Pesticide Bed Bug Treatment",
+      url: "{{SITE_URL}}/bed-bug-treatment/aprehend-extermination/",
+      offeredBy: { "@id": "{{SITE_URL}}/#localbusiness" },
+      itemOffered: { "@id": "{{SITE_URL}}/#service-aprehend-treatment" }
+    },
+    {
+      "@type": "Offer",
+      "@id": "{{SITE_URL}}/#offer-conventional-treatment",
+      name: "Conventional Chemical Bed Bug Treatment",
+      url: "{{SITE_URL}}/bed-bug-treatment/conventional-extermination/",
+      offeredBy: { "@id": "{{SITE_URL}}/#localbusiness" },
+      itemOffered: { "@id": "{{SITE_URL}}/#service-conventional-treatment" }
+    },
+    {
+      "@type": "Service",
+      "@id": "{{SITE_URL}}/#service-heat-treatment",
+      name: "1-Day Bed Bug Heat Treatment",
+      serviceType: "Bed bug heat treatment",
+      category: "Bed bug extermination",
+      url: "{{SITE_URL}}/bed-bug-treatment/heat-extermination/",
+      provider: { "@id": "{{SITE_URL}}/#localbusiness" },
+      description: "A one-day heat treatment for bed bug infestations that uses specialized heating systems to eliminate bed bugs across life stages, including eggs, nymphs, and adults."
+    },
+    {
+      "@type": "Service",
+      "@id": "{{SITE_URL}}/#service-aprehend-treatment",
+      name: "Aprehend Bio-Pesticide Bed Bug Treatment",
+      serviceType: "Aprehend bed bug treatment",
+      category: "Bed bug extermination",
+      url: "{{SITE_URL}}/bed-bug-treatment/aprehend-extermination/",
+      provider: { "@id": "{{SITE_URL}}/#localbusiness" },
+      description: "A professional Aprehend bio-pesticide treatment that targets bed bugs and helps provide long-lasting protection against reinfestation."
+    },
+    {
+      "@type": "Service",
+      "@id": "{{SITE_URL}}/#service-conventional-treatment",
+      name: "Conventional Chemical Bed Bug Treatment",
+      serviceType: "Conventional chemical bed bug treatment",
+      category: "Bed bug extermination",
+      url: "{{SITE_URL}}/bed-bug-treatment/conventional-extermination/",
+      provider: { "@id": "{{SITE_URL}}/#localbusiness" },
+      description: "A conventional chemical treatment option using selected insecticides to target and eliminate bed bugs at different infestation levels."
+    },
+    {
+      "@type": "WebSite",
+      "@id": "{{SITE_URL}}/#website",
+      url: "{{SITE_URL}}/",
+      name: "{{BRAND_NAME}}",
+      publisher: { "@id": "{{SITE_URL}}/#localbusiness" },
+      inLanguage: "en-US"
+    },
+    {
+      "@type": "WebPage",
+      "@id": "{{SITE_URL}}/#webpage",
+      url: "{{SITE_URL}}/",
+      name: "{{BRAND_NAME}} | 1-Day Safe and Effective Treatments",
+      description: "Home page for {{BRAND_NAME}}, a bed bug extermination company offering heat treatment, Aprehend bio-pesticide treatment, and conventional chemical treatment.",
+      isPartOf: { "@id": "{{SITE_URL}}/#website" },
+      about: { "@id": "{{SITE_URL}}/#localbusiness" },
+      primaryImageOfPage: { "@id": "{{SITE_URL}}/#logo" },
+      hasPart: [{ "@id": "{{SITE_URL}}/#faq" }],
+      mentions: [
+        { "@id": "{{SITE_URL}}/#service-heat-treatment" },
+        { "@id": "{{SITE_URL}}/#service-aprehend-treatment" },
+        { "@id": "{{SITE_URL}}/#service-conventional-treatment" }
+      ],
+      breadcrumb: { "@id": "{{SITE_URL}}/#breadcrumb" },
+      inLanguage: "en-US"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "{{SITE_URL}}/#breadcrumb",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Home",
+          item: "{{SITE_URL}}/"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "{{SITE_URL}}/#faq",
+      url: "{{SITE_URL}}/#faq",
+      name: "{{BRAND_NAME}} FAQs",
+      isPartOf: { "@id": "{{SITE_URL}}/#webpage" },
+      about: { "@id": "{{SITE_URL}}/#localbusiness" },
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "What types of treatments for bed bugs do you offer?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "{{BRAND_NAME}} offers heat treatment, Aprehend extermination, and conventional chemical treatment for bed bugs. Heat treatment is a one-day option, Aprehend provides long-lasting bio-pesticide protection, and conventional chemical treatment uses EPA-approved insecticides to target bed bugs at all life stages."
+          }
+        },
+        {
+          "@type": "Question",
+          name: "How effective is the 1-Day Heat Treatment by {{BRAND_ABBREV}}?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "The 1-Day Heat Treatment is designed to eradicate bed bugs across all stages of life with a single treatment by heating infested areas to temperatures that bed bugs cannot survive, providing quick and thorough extermination."
+          }
+        },
+        {
+          "@type": "Question",
+          name: "Will I need to throw away my furniture after a bed bug infestation?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "No. {{BRAND_NAME}} treatments, especially heat treatment, are designed to penetrate furniture and household items to kill bed bugs without damaging belongings, helping customers avoid unnecessary replacement costs."
+          }
+        },
+        {
+          "@type": "Question",
+          name: "Can you guarantee privacy during the bed bug extermination process?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes. {{BRAND_NAME}} emphasizes discretion and privacy, including unmarked service trucks and technicians trained to perform treatments with confidentiality and respect for the property."
+          }
+        },
+        {
+          "@type": "Question",
+          name: "Do I need to prepare anything before treatment?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Minimal preparation is needed before treatment. The team guides customers step by step, which may include clearing the area around the infestation and following treatment-specific instructions."
+          }
+        }
+      ],
+      inLanguage: "en-US"
+    }
+  ]
+};
+
+// Inner-page schema: a slim Organization stub so /service-area/*, /blog/*,
+// /bed-bug-treatment/* etc. all still announce the brand to Google
+// without polluting them with homepage-only graph nodes.
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": ["LocalBusiness", "HomeAndConstructionBusiness", "PestControl"],
+  "@id": "{{SITE_URL}}/#localbusiness",
+  name: "{{BRAND_NAME}}",
+  url: "{{SITE_URL}}/",
+  image: new URL(brandLogoPath, PREFERRED_SITE_ORIGIN),
+  logo: new URL(brandLogoPath, PREFERRED_SITE_ORIGIN),
+  telephone: "{{PHONE_MAIN_DASHED}}",
+  priceRange: "Varies",
+  areaServed: [
+    { "@type": "City", name: "Chicago" },
+    { "@type": "City", name: "Milwaukee" },
+  ],
+  contactPoint: [
+    {
+      "@type": "ContactPoint",
+      telephone: "{{PHONE_PRIMARY_DASHED}}",
+      contactType: "Illinois service line",
+      areaServed: "US",
+      availableLanguage: "en",
+    },
+    {
+      "@type": "ContactPoint",
+      telephone: "{{PHONE_SECONDARY_DASHED}}",
+      contactType: "Wisconsin service line",
+      areaServed: "US",
+      availableLanguage: "en",
+    },
+  ],
+  sameAs: [],
+};
+---
+
+<!doctype html>
+<html lang="en" class="bg-surface text-[--color-text]">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+
+    {/*
+      Google Analytics 4 ({{BRAND_ABBREV}} — {{GA4_MEASUREMENT_ID}}).
+
+      Note: the previous tag ({{LEGACY_GA_ID_DO_NOT_USE}}) was inherited from the {{FORK_SOURCE_PROJECT}}
+      fork and was sending {{BRAND_ABBREV}} traffic into {{FORK_SOURCE_PROJECT}}'s GA property. Do
+      NOT swap this back to {{LEGACY_GA_ID_DO_NOT_USE}} for any reason — that's {{FORK_SOURCE_PROJECT}}.
+
+      Performance: GA gtag.js is a notorious TBT contributor (~150-220ms
+      of main-thread blocking on cold load + forced reflow inside gtag's
+      own anchor handler). To preserve TBT we defer it until either:
+        • requestIdleCallback (browsers that support it) — fires when the
+          main thread is genuinely idle, never during the LCP-critical
+          render path.
+        • Otherwise a 3s setTimeout fallback.
+        • Plus first user interaction (whichever comes first) so we don't
+          miss the session-start beacon when the user immediately scrolls.
+      No measurement loss in practice: GA's session_start event still
+      fires on the first hit, just shifted past the LCP window.
+    */}
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '{{GA4_MEASUREMENT_ID}}');
+
+      var __gaLoaded = false;
+      function __loadGa() {
+        if (__gaLoaded) return;
+        __gaLoaded = true;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id={{GA4_MEASUREMENT_ID}}';
+        document.head.appendChild(s);
+        ['scroll','touchstart','mousemove','keydown'].forEach(function(ev){
+          window.removeEventListener(ev, __loadGa, { passive: true });
+        });
+      }
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(__loadGa, { timeout: 3000 });
+      } else {
+        setTimeout(__loadGa, 3000);
+      }
+      ['scroll','touchstart','mousemove','keydown'].forEach(function(ev){
+        window.addEventListener(ev, __loadGa, { once: true, passive: true });
+      });
+    </script>
+
+    {/*
+      CallRail dynamic-number swap snippet is NOT placed here.
+
+      Per CallRail's account-side guidance to Cory (May 2026): the swap.js
+      tag must live between the <body>...</body> tags, not in <head>.
+      Moving it out lets CallRail's verifier detect it correctly — when
+      it lived here in <head>, the tester reported "never returns a
+      result" even though the script was loading.
+
+      The actual <script> placement is just before </body> at the end of
+      this file. Preconnect hints to cdn.callreports.com remain in <head>
+      so the TCP/TLS handshake still warms up early.
+    */}
+
+    <!-- Preconnect to critical domains for faster connection establishment -->
+    <link rel="preconnect" href="https://cdn.sanity.io" crossorigin />
+    <link rel="preconnect" href="https://cdn.callreports.com" crossorigin />
+    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.sanity.io" />
+    <link rel="dns-prefetch" href="https://cdn.callreports.com" />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+    <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+    <link rel="dns-prefetch" href="https://maps.googleapis.com" />
+    <link rel="dns-prefetch" href="https://www.gstatic.com" />
+
+    <!-- Preload critical fonts with high priority -->
+    <link
+      rel="preload"
+      href="/fonts/ibm-plex-sans-600.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/ibm-plex-sans-700.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/open-sans-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    {
+      heroPreloadUrlMobile && (
+        <link
+          rel="preload"
+          as="image"
+          href={heroPreloadUrlMobile}
+          imagesrcset={heroPreloadSrcSetMobile || undefined}
+          imagesizes={heroPreloadSizesMobile || undefined}
+          fetchpriority="high"
+          media="(max-width: 767px)"
+        />
+      )
+    }
+
+    {
+      heroPreloadUrl && (
+        <link
+          rel="preload"
+          as="image"
+          href={heroPreloadUrl}
+          imagesrcset={heroPreloadSrcSet || undefined}
+          imagesizes="(max-width: 1024px) 100vw, 900px"
+          fetchpriority="high"
+          media="(min-width: 768px)"
+        />
+      )
+    }
+
+    <!-- Favicon. Both /favicon.png and /{{brand_slug}}-icon.png are the same {{BRAND_ABBREV}}
+         bedbug brand mark (user replaced the old "bed-looking" file with
+         the new artwork at the same path). The ?v= cache-bust forces
+         browsers + Cloudflare to drop the previously cached image even
+         when the URL is otherwise identical. Bump the version number
+         here any time the favicon artwork changes. -->
+    <link rel="icon" type="image/png" sizes="any" href="/favicon.png?v=3" />
+    <link rel="apple-touch-icon" href="/favicon.png?v=3" />
+
+    <!-- iOS Safari / Chrome Android tint the status bar with this color.
+         Matched to --emergency (brand red) so the area above the page
+         flows into the red "Live dispatch" mast-bar below it. -->
+    <meta name="theme-color" content="#C84545" />
+    <meta name="version" content="1.0.5" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalHref} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta
+      property="og:image"
+      content={new URL(brandLogoPath, PREFERRED_SITE_ORIGIN)}
+    />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content={canonicalHref} />
+    <meta property="twitter:title" content={pageTitle} />
+    <meta property="twitter:description" content={description} />
+    <meta
+      property="twitter:image"
+      content={new URL(brandLogoPath, PREFERRED_SITE_ORIGIN)}
+    />
+
+    {/*
+      Structured-data block.
+
+      Homepage (`/`) gets the full @graph that mirrors the legacy WP site
+      (LocalBusiness + Services + OfferCatalog + WebSite + WebPage +
+      BreadcrumbList + FAQPage). Every other route gets a slimmer
+      Organization-only schema — emitting the homepage graph everywhere
+      would tell Google every page IS the homepage (wrong WebPage @id,
+      wrong breadcrumb, etc.).
+    */}
+    {isHomePage ? (
+      <script
+        type="application/ld+json"
+        is:inline
+        set:html={JSON.stringify(homepageSchema)}
+      />
+    ) : (
+      <script
+        type="application/ld+json"
+        is:inline
+        set:html={JSON.stringify(organizationSchema)}
+      />
+    )}
+
+    <link rel="canonical" href={canonicalHref} />
+
+    <title>{pageTitle}</title>
+
+    <!-- CRITICAL CSS - Inlined to prevent render-blocking -->
+    <style is:inline set:html={criticalCss}></style>
+  </head>
+  <body>
+    <div
+      id="nav-sticky-sentinel"
+      aria-hidden="true"
+      class="pointer-events-none absolute left-0 top-0 h-[60px] w-px"
+    >
+    </div>
+
+
+
+
+
+
+    
+
+    <!-- ============================================================
+         Top mast-bar: red status strip with live-dispatch indicator.
+         Phones moved to the main header row as filled CTA buttons.
+         ============================================================ -->
+    <div class="bbg-mast-bar" role="region" aria-label="Service status">
+      <div class="bbg-mast-bar-inner">
+        <div class="bbg-mast-bar-left">
+          <span class="bbg-mast-live">
+            <span class="bbg-mast-live-dot" aria-hidden="true"></span>
+            Live dispatch · IL &amp; WI metros
+          </span>
+          <span class="bbg-mast-tag">1-day heat treatment · 30-day re-treat guarantee</span>
+        </div>
+        <div class="bbg-mast-bar-right">
+          <span class="bbg-mast-tag">Get your sleep back tonight</span>
+        </div>
+      </div>
+    </div>
+
+    <header id="site-nav" class="bbg-mast">
+      <div class="bbg-mast-row">
+        <a href="/" class="bbg-mast-brand" aria-label="{{BRAND_NAME}} home">
+          {/*
+            Header logo via Astro Image so the build outputs a properly-sized
+            WebP at 280x100 instead of serving the 486x308 source PNG.
+            The original /images/bed-bugs-be-gone-now-logo.png PNG kept
+            getting flagged by PageSpeed (28 KiB wasted) because it's
+            many times larger than the displayed dimensions. Astro Image
+            handles format negotiation + responsive sizing + permanent
+            cache-busting via content hash automatically.
+          */}
+          {/*
+            Width/height tuned to the actual rendered size in DevTools
+            (166×105 on mobile). Serving at 220 gives ~1.3x retina headroom
+            without the Lighthouse "image is larger than it needs to be"
+            flag. Quality dropped 70→62 (still visually crisp on a logo
+            with flat color regions, saves ~7-9 KiB).
+          */}
+          {/*
+            Mobile renders the logo at ~95×60, desktop at ~127×80.
+            Single-width 220 was too big for mobile (Lighthouse flagged
+            16 KiB savings). widths={[140, 220]} + sizes makes the browser
+            pick the small variant on mobile and the larger one on desktop.
+          */}
+          <Image
+            src={{{brand_slug}}LogoAsset}
+            alt="{{BRAND_NAME}} logo"
+            class="bbg-mast-brand-img"
+            loading="eager"
+            widths={[140, 220]}
+            sizes="(max-width: 768px) 140px, 220px"
+            width={220}
+            height={80}
+            fetchpriority="high"
+            decoding="async"
+            format="webp"
+            quality={62}
+          />
+        </a>
+
+        <nav class="bbg-mast-nav" aria-label="Primary">
+          <a
+            href="/"
+            class={`bbg-mast-nav-item ${isActiveHref("/") ? "is-active" : ""}`}
+          >
+            Home
+          </a>
+
+          {desktopNavItems.map((item) => {
+            const hasChildren = Boolean(item.children?.length);
+            const isActive = isActiveHref(item.href);
+
+            if (hasChildren) {
+              return (
+                <div class="bbg-mast-nav-group">
+                  <a
+                    href={item.href}
+                    class={`bbg-mast-nav-item bbg-mast-nav-trigger ${isActive ? "is-active" : ""}`}
+                  >
+                    {item.label}
+                    <svg viewBox="0 0 24 24" class="bbg-mast-nav-chev" aria-hidden="true">
+                      <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                  </a>
+
+                  <div class="bbg-mast-nav-pop">
+                    <div class="bbg-mast-nav-pop-inner">
+                      {item.children?.map((child) => (
+                        <a href={child.href} class="bbg-mast-nav-pop-link">
+                          {child.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <a
+                href={item.href}
+                class={`bbg-mast-nav-item ${isActive ? "is-active" : ""}`}
+              >
+                {item.label}
+              </a>
+            );
+          })}
+        </nav>
+
+        <div class="bbg-mast-end">
+          {/* Two stacked phone CTAs — equal weight, no outline, white text. */}
+          <div class="bbg-mast-phones">
+            <a href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}" class="btn-primary bbg-mast-phone-btn">
+              Illinois {{PHONE_PRIMARY_FORMATTED}}
+            </a>
+            <a href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}" class="btn-secondary bbg-mast-phone-btn">
+              Wisconsin {{PHONE_SECONDARY_FORMATTED}}
+            </a>
+          </div>
+
+          <button
+            class="bbg-mast-menu-btn"
+            aria-label="Open navigation"
+            data-mobile-menu-trigger
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+              <path d="M5 6h14M5 12h14M5 18h14"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <style>
+      /* === Masthead =================================================== */
+      /* Top mast-bar: red status strip per brand direction. */
+      .bbg-mast-bar {
+        background: var(--emergency);
+        color: #ffffff;
+        font-family: var(--font-body);
+        font-size: 13px;
+      }
+
+      .bbg-mast-bar-inner {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 10px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+      }
+
+      .bbg-mast-bar-left {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        align-items: center;
+        color: #ffffff;
+      }
+
+      .bbg-mast-live {
+        display: inline-flex;
+        align-items: center;
+        font-weight: 600;
+      }
+
+      /* On the red mast-bar, the live dot uses warm-white so it's visible
+         against the red surface (red-on-red would disappear). */
+      .bbg-mast-live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #ffffff;
+        margin-right: 8px;
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+        animation: bbg-mast-pulse 2.4s ease-out infinite;
+      }
+
+      @keyframes bbg-mast-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+        50%      { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); }
+      }
+
+      .bbg-mast-tag {
+        /* No opacity here — the previous 0.92 dropped the effective
+           text/red-bg contrast just below WCAG AA's 4.5:1 threshold.
+           Pure white on #C84545 sits at ~4.75:1, which passes. */
+        color: #ffffff;
+        font-weight: 600;
+      }
+
+      .bbg-mast-bar-right {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        font-weight: 600;
+        color: #ffffff;
+      }
+
+      @media (max-width: 880px) {
+        .bbg-mast-bar-left .bbg-mast-tag { display: none; }
+        .bbg-mast-bar-inner { padding: 8px 16px; gap: 12px; flex-wrap: wrap; }
+        .bbg-mast-bar-right { gap: 10px; }
+      }
+
+      @media (max-width: 720px) {
+        .bbg-mast-bar-right { display: none; }
+      }
+
+      /* === Sticky main nav row ======================================= */
+      .bbg-mast {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(247, 245, 241, 0.85);
+        backdrop-filter: saturate(140%) blur(14px);
+        -webkit-backdrop-filter: saturate(140%) blur(14px);
+        transition: background 200ms ease, box-shadow 200ms ease, padding 200ms ease;
+      }
+
+      .bbg-mast[data-stuck="true"] {
+        background: rgba(247, 245, 241, 0.96);
+        box-shadow:
+          0 1px 0 rgba(29, 29, 29, 0.06),
+          0 8px 24px rgba(29, 29, 29, 0.05);
+      }
+
+      .bbg-mast-row {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 16px 24px;
+        /* 3-column grid: brand left, nav centered (auto col, justify-self
+           center), end right. This perfectly centers the nav between the
+           brand and the right-side CTAs regardless of their widths. */
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 24px;
+      }
+
+      .bbg-mast-row > .bbg-mast-brand { justify-self: start; }
+      .bbg-mast-row > .bbg-mast-nav   { justify-self: center; margin: 0; }
+      .bbg-mast-row > .bbg-mast-end   { justify-self: end; margin: 0; }
+
+      .bbg-mast[data-stuck="true"] .bbg-mast-row {
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+
+      .bbg-mast-brand {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .bbg-mast-brand-img {
+        height: 80px;
+        width: auto;
+        object-fit: contain;
+        transition: height 200ms ease;
+      }
+
+      .bbg-mast[data-stuck="true"] .bbg-mast-brand-img {
+        height: 64px;
+      }
+
+      /* Pill navigation */
+      .bbg-mast-nav {
+        display: flex;
+        gap: 4px;
+        margin-left: auto;
+        background: var(--warm-white);
+        padding: 6px;
+        border-radius: 999px;
+        box-shadow: 0 4px 14px rgba(29, 29, 29, 0.05);
+        border: 1px solid rgba(29, 29, 29, 0.06);
+      }
+
+      .bbg-mast-nav-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--font-heading);
+        font-weight: 500;
+        font-size: 14px;
+        color: var(--ink-soft);
+        padding: 9px 16px;
+        border-radius: 999px;
+        transition: background 180ms ease, color 180ms ease;
+        white-space: nowrap;
+      }
+
+      /* Nav hover: soft sage tint with brand-green text */
+      .bbg-mast-nav-item:hover,
+      .bbg-mast-nav-item:focus-visible {
+        background: var(--surface-sage);
+        color: var(--green-primary);
+      }
+
+      /* Active page: filled brand-green pill with white text */
+      .bbg-mast-nav-item.is-active {
+        background: var(--green-primary);
+        color: #ffffff;
+      }
+
+      .bbg-mast-nav-item.is-active:hover,
+      .bbg-mast-nav-item.is-active:focus-visible {
+        background: var(--green-deep);
+        color: #ffffff;
+      }
+
+      .bbg-mast-nav-chev {
+        width: 12px;
+        height: 12px;
+        transition: transform 180ms ease;
+      }
+
+      .bbg-mast-nav-group {
+        position: relative;
+      }
+
+      .bbg-mast-nav-group:hover .bbg-mast-nav-chev,
+      .bbg-mast-nav-group:focus-within .bbg-mast-nav-chev {
+        transform: rotate(180deg);
+      }
+
+      .bbg-mast-nav-pop {
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        transform: translate(-50%, 8px);
+        min-width: 280px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 180ms ease, transform 180ms ease;
+        padding-top: 12px;
+      }
+
+      .bbg-mast-nav-group:hover .bbg-mast-nav-pop,
+      .bbg-mast-nav-group:focus-within .bbg-mast-nav-pop {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate(-50%, 0);
+      }
+
+      .bbg-mast-nav-pop-inner {
+        background: var(--warm-white);
+        border-radius: 18px;
+        padding: 8px;
+        box-shadow:
+          0 1px 0 rgba(29, 29, 29, 0.04),
+          0 24px 48px -16px rgba(29, 29, 29, 0.18);
+        border: 1px solid rgba(29, 29, 29, 0.06);
+      }
+
+      .bbg-mast-nav-pop-link {
+        display: block;
+        font-family: var(--font-heading);
+        font-weight: 500;
+        font-size: 14px;
+        color: var(--ink-soft);
+        padding: 10px 14px;
+        border-radius: 12px;
+        transition: background 160ms ease, color 160ms ease;
+      }
+
+      .bbg-mast-nav-pop-link:hover,
+      .bbg-mast-nav-pop-link:focus-visible {
+        background: var(--sand-pale);
+        color: var(--green-deep);
+      }
+
+      /* Right side: CTA + mobile button */
+      .bbg-mast-end {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-left: auto;
+      }
+
+      .bbg-mast-nav + .bbg-mast-end {
+        margin-left: 0;
+      }
+
+      /* Two-phone stack — equal weight, no outline, white text. */
+      .bbg-mast-phones {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: stretch;
+      }
+
+      .bbg-mast-phone-btn {
+        min-width: 220px;
+        min-height: 40px;
+        padding: 9px 16px;
+        font-size: 13px;
+        white-space: nowrap;
+        justify-content: center;
+        /* Hover: shine sweep + lift + glow. The shine is a diagonal white
+           gradient that travels left→right across the button on hover. */
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        transition:
+          transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          box-shadow 240ms ease;
+      }
+
+      .bbg-mast-phone-btn::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          120deg,
+          transparent 0%,
+          transparent 38%,
+          rgba(255, 255, 255, 0.35) 50%,
+          transparent 62%,
+          transparent 100%
+        );
+        transform: translateX(-120%);
+        transition: transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .bbg-mast-phone-btn:hover,
+      .bbg-mast-phone-btn:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px -10px rgba(31, 77, 60, 0.45);
+      }
+
+      .bbg-mast-phone-btn:hover::before,
+      .bbg-mast-phone-btn:focus-visible::before {
+        transform: translateX(120%);
+      }
+
+      .bbg-mast-phone-btn > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .bbg-mast-menu-btn {
+        display: none;
+        width: 44px;
+        height: 44px;
+        background: var(--warm-white);
+        border: 1px solid rgba(29, 29, 29, 0.1);
+        border-radius: 999px;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink-black);
+        box-shadow: 0 4px 12px rgba(29, 29, 29, 0.06);
+        transition: background 180ms ease;
+      }
+
+      .bbg-mast-menu-btn:hover {
+        background: var(--sand-pale);
+      }
+
+      .bbg-mast-menu-btn svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      @media (max-width: 1080px) {
+        .bbg-mast-nav {
+          display: none;
+        }
+
+        .bbg-mast-phones {
+          display: none;
+        }
+
+        .bbg-mast-menu-btn {
+          display: inline-flex;
+        }
+
+        /* Switch back to flex on mobile (desktop grid layout doesn't make
+           sense when nav and phones are hidden). Logo left, hamburger
+           pulled inboard from the right edge so the composition feels
+           balanced rather than corner-stuck. */
+        .bbg-mast-row {
+          display: flex;
+          justify-content: space-between;
+          padding-right: 32px;
+        }
+        .bbg-mast-row > .bbg-mast-end {
+          justify-self: auto;
+          margin-left: auto;
+        }
+
+        /* On mobile, let the regular header scroll away with the page.
+           The floating sticky pill takes over at the top after scroll
+           (handled by IntersectionObserver on #nav-sticky-sentinel).
+           Opaque bg + hairline divider so it reads against the body. */
+        .bbg-mast {
+          position: static;
+          background: var(--surface-white);
+          border-bottom: 1px solid rgba(29, 29, 29, 0.08);
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
+
+        .bbg-mast-row {
+          padding-top: 14px;
+          padding-bottom: 14px;
+          min-height: 64px;
+          align-items: center;
+        }
+
+        /* Sage tint makes the hamburger a clear tap target. */
+        .bbg-mast-menu-btn {
+          background: var(--surface-sage);
+        }
+      }
+
+      @media (max-width: 560px) {
+        .bbg-mast-row {
+          padding: 12px 16px;
+          gap: 12px;
+        }
+
+        .bbg-mast-brand-img {
+          height: 60px;
+        }
+      }
+    </style>
+
+
+
+
+
+
+
+
+
+<div
+      id="mobile-sticky-controls"
+      class="bbg-sticky-pill opacity-0 scale-90 pointer-events-none"
+    >
+      <a
+        href="/"
+        aria-label="{{BRAND_NAME}} home"
+        class="bbg-sticky-pill-brand"
+      >
+        <Image
+          src={{{brand_slug}}LogoAsset}
+          alt="{{BRAND_NAME}} logo"
+          class="bbg-sticky-pill-brand-img"
+          width={72}
+          height={72}
+          loading="lazy"
+          format="webp"
+          quality={70}
+          decoding="async"
+        />
+      </a>
+      <button
+        class="bbg-sticky-pill-menu"
+        aria-label="Open navigation"
+        data-mobile-menu-trigger
+      >
+        <span class="sr-only">Open menu</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+          <path d="M5 6h14M5 12h14M5 18h14"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div
+      id="mobile-menu"
+      class="mobile-menu-overlay bbg-drawer-overlay hidden"
+      aria-hidden="true"
+      inert
+    >
+      <div
+        class="mobile-menu-panel bbg-drawer-panel"
+        data-mobile-menu-panel
+      >
+        <div class="bbg-drawer-head">
+          <a href="/" class="bbg-drawer-brand" aria-label="{{BRAND_NAME}} home">
+            {/*
+              Drawer logo displays at 122×77 per DevTools. Serving at 160
+              gives ~1.3x retina headroom — Lighthouse stops flagging
+              "image larger than displayed" while still rendering crisp.
+            */}
+            {/*
+              Drawer logo actually displays at ~70×44 per latest
+              Lighthouse run. 110 wide gives ~1.5x retina headroom.
+            */}
+            <Image
+              src={{{brand_slug}}LogoAsset}
+              alt="{{BRAND_NAME}} logo"
+              class="bbg-drawer-brand-img"
+              width={110}
+              height={42}
+              loading="lazy"
+              decoding="async"
+              format="webp"
+              quality={62}
+            />
+          </a>
+          <button
+            id="mobile-menu-close"
+            class="bbg-drawer-close"
+            aria-label="Close menu"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M6 18L18 6" />
+            </svg>
+          </button>
+        </div>
+
+        <p class="bbg-drawer-tagline">Get your sleep back · IL &amp; WI</p>
+
+        <nav class="bbg-drawer-nav" aria-label="Mobile primary">
+          {MOBILE_NAV.map((item, index) => {
+            const hasChildren = !!item.children?.length;
+            const submenuId = `mobile-menu-sub-${index}`;
+            return (
+              <div class="bbg-drawer-row">
+                {hasChildren ? (
+                  <>
+                    <button
+                      class="bbg-drawer-toggle"
+                      data-mobile-menu-toggle={submenuId}
+                      aria-expanded="false"
+                    >
+                      <span>{item.label}</span>
+                      <svg viewBox="0 0 24 24" class="bbg-drawer-chev" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
+                    <div
+                      id={submenuId}
+                      class="bbg-drawer-sub hidden"
+                      data-mobile-menu-submenu
+                    >
+                      <a href={item.href} class="bbg-drawer-sub-link bbg-drawer-sub-link-overview">
+                        Overview
+                      </a>
+                      {item.children?.map((child) => (
+                        <a href={child.href} class="bbg-drawer-sub-link">
+                          {child.label}
+                        </a>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <a href={item.href} class="bbg-drawer-link">
+                    {item.label}
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        <div class="bbg-drawer-foot">
+          <p class="bbg-drawer-foot-eyebrow">Need urgent help?</p>
+          <p class="bbg-drawer-foot-copy">
+            We respond in under an hour for discreet same-day inspections.
+          </p>
+          <a href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}" class="btn-primary bbg-drawer-cta">
+            Call Illinois · {{PHONE_PRIMARY_FORMATTED}}
+          </a>
+          <a href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}" class="btn-ghost bbg-drawer-cta">
+            Call Wisconsin · {{PHONE_SECONDARY_FORMATTED}}
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      /* === Floating mobile sticky pill ===============================
+         Single pill-shaped rectangle containing logo (left) + hamburger
+         (right), with the brand red border for emphasis. Replaces the
+         earlier two-circle treatment so the logo can read bigger.
+         NOTE: pointer-events is owned by the Tailwind utility on the
+         element (`pointer-events-none`), which JS toggles on/off as the
+         pill animates in. We must NOT set pointer-events here or the
+         hamburger inside the pill becomes permanently unclickable. */
+      .bbg-sticky-pill {
+        position: fixed;
+        top: 10px;
+        left: 12px;
+        right: 12px;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 6px 8px 6px 14px;
+        background: var(--warm-white);
+        border: 2px solid var(--emergency);
+        border-radius: 999px;
+        box-shadow:
+          0 1px 0 rgba(29, 29, 29, 0.04),
+          0 18px 36px -10px rgba(29, 29, 29, 0.22);
+        transition: opacity 220ms ease, transform 220ms ease;
+      }
+
+      @media (min-width: 1080px) {
+        .bbg-sticky-pill { display: none !important; }
+      }
+
+      .bbg-sticky-pill-brand {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-start;
+        flex-shrink: 0;
+      }
+
+      .bbg-sticky-pill-brand-img {
+        width: auto;
+        height: 44px;
+        max-width: 180px;
+        object-fit: contain;
+        display: block;
+      }
+
+      .bbg-sticky-pill-menu {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 44px;
+        width: 44px;
+        background: var(--surface-sage);
+        border: 1px solid rgba(29, 29, 29, 0.06);
+        border-radius: 999px;
+        color: var(--ink-black);
+        flex-shrink: 0;
+        transition: background 180ms ease;
+      }
+
+      .bbg-sticky-pill-menu:hover,
+      .bbg-sticky-pill-menu:focus-visible {
+        background: var(--surface-soft-green);
+      }
+
+      .bbg-sticky-pill-menu svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      /* === Drawer ==================================================== */
+      .bbg-drawer-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(29, 29, 29, 0.45);
+        backdrop-filter: blur(4px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 220ms ease;
+        padding: 16px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .bbg-drawer-overlay.is-open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      @media (min-width: 1080px) {
+        .bbg-drawer-overlay { display: none !important; }
+      }
+
+      .bbg-drawer-panel {
+        background: var(--warm-white);
+        width: 100%;
+        max-width: 380px;
+        height: 100%;
+        border-radius: 28px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateX(28px);
+        transition:
+          opacity 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+        box-shadow:
+          0 30px 80px -20px rgba(29, 29, 29, 0.4),
+          0 12px 32px -12px rgba(29, 29, 29, 0.2);
+      }
+
+      .bbg-drawer-panel.is-open {
+        opacity: 1;
+        transform: translateX(0);
+      }
+
+      .bbg-drawer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 22px 8px;
+      }
+
+      .bbg-drawer-brand-img {
+        height: 44px;
+        width: auto;
+        object-fit: contain;
+      }
+
+      .bbg-drawer-close {
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        background: var(--sand-pale);
+        color: var(--ink-black);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 180ms ease;
+      }
+
+      .bbg-drawer-close:hover {
+        background: var(--sand);
+      }
+
+      .bbg-drawer-close svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .bbg-drawer-tagline {
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--green-deep);
+        padding: 0 22px 16px;
+        border-bottom: 1px solid rgba(29, 29, 29, 0.08);
+      }
+
+      .bbg-drawer-nav {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 14px;
+      }
+
+      .bbg-drawer-row {
+        border-bottom: 1px solid rgba(29, 29, 29, 0.05);
+      }
+
+      .bbg-drawer-row:last-child {
+        border-bottom: 0;
+      }
+
+      .bbg-drawer-link,
+      .bbg-drawer-toggle {
+        font-family: var(--font-heading);
+        font-weight: 500;
+        font-size: 16px;
+        color: var(--ink-black);
+        padding: 14px 12px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        background: transparent;
+        transition: background 160ms ease;
+      }
+
+      .bbg-drawer-link:hover,
+      .bbg-drawer-toggle:hover {
+        background: var(--sand-pale);
+      }
+
+      .bbg-drawer-chev {
+        width: 18px;
+        height: 18px;
+        color: var(--ink-soft);
+        transition: transform 200ms ease;
+      }
+
+      .bbg-drawer-toggle[aria-expanded="true"] .bbg-drawer-chev {
+        transform: rotate(180deg);
+      }
+
+      .bbg-drawer-sub {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 4px 6px 12px 14px;
+      }
+
+      /* The toggle JS toggles a `hidden` class to collapse/expand each
+         submenu. Without this rule, our `display: flex` above wins the
+         cascade and every submenu defaults open. */
+      .bbg-drawer-sub.hidden {
+        display: none;
+      }
+
+      .bbg-drawer-sub.pt-2 {
+        padding-top: 8px;
+      }
+
+      .bbg-drawer-sub-link {
+        font-size: 14px;
+        font-family: var(--font-heading);
+        color: var(--ink-soft);
+        padding: 9px 12px;
+        border-radius: 10px;
+        transition: background 160ms ease, color 160ms ease;
+      }
+
+      .bbg-drawer-sub-link:hover {
+        background: var(--sand-pale);
+        color: var(--green-deep);
+      }
+
+      .bbg-drawer-sub-link-overview {
+        background: rgba(94, 127, 58, 0.08);
+        color: var(--green-deep);
+        font-weight: 600;
+      }
+
+      .bbg-drawer-foot {
+        padding: 18px 22px 24px;
+        border-top: 1px solid rgba(29, 29, 29, 0.08);
+        background: var(--sand-pale);
+      }
+
+      .bbg-drawer-foot-eyebrow {
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--ink-black);
+        margin-bottom: 4px;
+      }
+
+      .bbg-drawer-foot-copy {
+        font-size: 12px;
+        color: var(--ink-soft);
+        margin-bottom: 14px;
+        line-height: 1.5;
+      }
+
+      .bbg-drawer-cta {
+        width: 100%;
+        margin-bottom: 8px;
+        font-size: 13px;
+      }
+
+      .bbg-drawer-cta:last-child {
+        margin-bottom: 0;
+      }
+    </style>
+    <main class="w-full">
+      <slot />
+    </main>
+    <!-- ============================================================
+         v5-modern footer: pre-footer call panel, then grid columns,
+         then minimalist legal strip.
+         ============================================================ -->
+    <footer class="bbg-foot">
+      <div class="bbg-foot-cta-wrap">
+        <div class="bbg-foot-cta-card">
+          <div class="bbg-foot-cta-text">
+            <p class="bbg-foot-cta-eyebrow">No more sleepless nights</p>
+            <h2 class="bbg-foot-cta-title">
+              Get a bed-bug inspection
+              <span class="bbg-foot-cta-italic">— before tonight.</span>
+            </h2>
+          </div>
+          <div class="bbg-foot-cta-actions">
+            <a href="/contact-us/" class="btn-primary bbg-foot-cta-primary">
+              Schedule inspection
+              <svg viewBox="0 0 24 24" class="bbg-foot-cta-arrow" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </a>
+            <p class="bbg-foot-cta-or" aria-hidden="true">or call us</p>
+            <div class="bbg-foot-cta-phones">
+              <a href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}" class="btn-ghost bbg-foot-cta-phone">
+                <svg viewBox="0 0 24 24" class="bbg-foot-cta-phone-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                </svg>
+                <span class="bbg-foot-cta-phone-label">
+                  <span class="bbg-foot-cta-phone-state">Illinois</span>
+                  <span class="bbg-foot-cta-phone-num">{{PHONE_PRIMARY_FORMATTED}}</span>
+                </span>
+              </a>
+              <a href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}" class="btn-ghost bbg-foot-cta-phone">
+                <svg viewBox="0 0 24 24" class="bbg-foot-cta-phone-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                </svg>
+                <span class="bbg-foot-cta-phone-label">
+                  <span class="bbg-foot-cta-phone-state">Wisconsin</span>
+                  <span class="bbg-foot-cta-phone-num">{{PHONE_SECONDARY_FORMATTED}}</span>
+                </span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bbg-foot-cols-wrap">
+        <div class="bbg-foot-cols">
+          {/*
+            NAP block — Name / Address / Phone in the order Google's local
+            SEO bots look for. Plain, readable text; mirrors the citation
+            format on Google Business Profile and other directory listings
+            so search engines treat it as a consistent business mention.
+          */}
+          <div class="bbg-foot-col bbg-foot-brand">
+            {/*
+              Footer logo displays around 180×60 on mobile, 220×73 on
+              desktop. 240 gives 1.3x retina with no waste.
+            */}
+            <Image
+              src={{{brand_slug}}LogoAsset}
+              alt="{{BRAND_NAME}} logo"
+              class="bbg-foot-brand-img"
+              width={240}
+              height={80}
+              loading="lazy"
+              decoding="async"
+              format="webp"
+              quality={62}
+            />
+            <p class="bbg-foot-nap-name">{{BRAND_NAME}}</p>
+            <address class="bbg-foot-nap-address">
+              {{NAP_STREET_ADDRESS}}<br />
+              {{NAP_CITY}}, IL {{NAP_ZIP}}
+            </address>
+            <p class="bbg-foot-nap-contact-label">Contact Us:</p>
+            <ul class="bbg-foot-nap-phones">
+              <li>
+                <a href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}">{{PHONE_PRIMARY_FORMATTED}}</a>
+                <span class="bbg-foot-nap-state"> — Illinois</span>
+              </li>
+              <li>
+                <a href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}">{{PHONE_SECONDARY_FORMATTED}}</a>
+                <span class="bbg-foot-nap-state"> — Wisconsin</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="bbg-foot-col">
+            <p class="bbg-foot-eyebrow">Find It Fast</p>
+            <ul class="bbg-foot-list">
+              {quickLinks.map((item) => (
+                <li>
+                  <a href={item.href}>{item.label}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div class="bbg-foot-col">
+            <p class="bbg-foot-eyebrow">Our Services</p>
+            <ul class="bbg-foot-list">
+              {footerServiceLinks.map((service) => (
+                <li>
+                  <a href={service.href}>{service.label}</a>
+                  {service.children && service.children.length > 0 && (
+                    <ul class="bbg-foot-sublist">
+                      {service.children.map((child) => (
+                        <li>
+                          <a href={child.href}>{child.label}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div class="bbg-foot-col bbg-foot-map-col">
+            <p class="bbg-foot-eyebrow">Service Map</p>
+            <div class="bbg-foot-map">
+              <iframe
+                src="https://www.google.com/maps?q=Chicago%2C+IL&output=embed"
+                title="{{BRAND_NAME}} service area on Google Maps"
+                allowfullscreen=""
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bbg-foot-legal">
+        <div class="bbg-foot-legal-inner">
+          <span>© {new Date().getFullYear()} {{BRAND_NAME}}. All rights reserved.</span>
+          <span class="bbg-foot-legal-links">
+            <a href="/privacy-policy/">Privacy Policy</a>
+            <span aria-hidden="true">·</span>
+            <a href={termsHref}>Terms of Service</a>
+          </span>
+        </div>
+      </div>
+    </footer>
+
+    <style>
+      /* === Footer (no ink-black bg anywhere) ========================== */
+      .bbg-foot {
+        background: var(--green-deep);
+        color: var(--warm-white);
+      }
+
+      /* Pre-footer CTA strip uses --green-darker (deepest brand green) so
+         it stands distinctly from the green-deep footer columns. Matches
+         the .bbg-panel-dark mid-page panel for visual consistency. */
+      .bbg-foot-cta-wrap {
+        background: var(--green-darker);
+        padding: 80px 0;
+      }
+
+      .bbg-foot-cta-card {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        gap: 48px;
+        flex-wrap: wrap;
+      }
+
+      .bbg-foot-cta-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--sand-pale);
+        margin-bottom: 14px;
+      }
+
+      /* Red accent dot — per brand direction to use the official red as
+         a non-text accent. The dot is decorative; emergency-only-for-CTA
+         semantics are not violated. */
+      .bbg-foot-cta-eyebrow::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--emergency);
+        box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.26);
+      }
+
+      .bbg-foot-cta-title {
+        font-family: var(--font-heading);
+        font-weight: 700;
+        font-size: clamp(32px, 4.5vw, 52px);
+        line-height: 1.05;
+        letter-spacing: -0.025em;
+        color: var(--warm-white);
+        text-wrap: balance;
+        max-width: 620px;
+      }
+
+      .bbg-foot-cta-italic {
+        font-style: italic;
+        font-weight: 400;
+        color: rgba(247, 245, 241, 0.88);
+      }
+
+      .bbg-foot-cta-text {
+        flex: 1;
+        min-width: 280px;
+      }
+
+      /* Right-column actions: primary CTA up top (full width of the
+         actions column), tiny "or call us" caption, then two state
+         phone buttons side-by-side. Tight rhythm so the column doesn't
+         feel hollow next to the headline. */
+      .bbg-foot-cta-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        flex-shrink: 0;
+        min-width: 360px;
+        max-width: 420px;
+      }
+
+      .bbg-foot-cta-primary {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .bbg-foot-cta-or {
+        margin: 4px 0 0;
+        text-align: center;
+        font-family: var(--font-heading);
+        font-weight: 500;
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(247, 245, 241, 0.62);
+      }
+
+      .bbg-foot-cta-phones {
+        display: flex;
+        gap: 10px;
+      }
+
+      .bbg-foot-cta-phone {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 10px 14px;
+        gap: 10px;
+        color: var(--warm-white);
+        border: 1.5px solid rgba(247, 245, 241, 0.28);
+        background: transparent;
+        box-shadow: none;
+        transition: background 200ms ease, border-color 200ms ease, color 200ms ease;
+      }
+
+      .bbg-foot-cta-phone:hover,
+      .bbg-foot-cta-phone:focus-visible {
+        background: var(--warm-white);
+        color: var(--ink-black);
+        border-color: var(--warm-white);
+        transform: none;
+      }
+
+      .bbg-foot-cta-phone-icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+
+      .bbg-foot-cta-phone-label {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        line-height: 1.1;
+      }
+
+      .bbg-foot-cta-phone-state {
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.01em;
+      }
+
+      .bbg-foot-cta-phone-num {
+        font-weight: 500;
+        font-size: 12px;
+        opacity: 0.92;
+        white-space: nowrap;
+      }
+
+      .bbg-foot-cta-arrow {
+        width: 14px;
+        height: 14px;
+        transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      .bbg-foot-cta-primary:hover .bbg-foot-cta-arrow {
+        transform: translateX(3px);
+      }
+
+      @media (max-width: 720px) {
+        .bbg-foot-cta-actions {
+          min-width: 0;
+          max-width: none;
+          width: 100%;
+        }
+      }
+
+      /* Columns */
+      .bbg-foot-cols-wrap {
+        background: var(--green-deep);
+        padding: 64px 0 56px;
+        border-top: 1px solid rgba(247, 245, 241, 0.14);
+      }
+
+      .bbg-foot-cols {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: grid;
+        gap: 40px;
+        /* 4 columns: NAP block / Find It Fast / Our Services / Service map.
+           Find It Fast + Our Services are split into their own columns so
+           the eyebrow + list stack reads cleanly instead of doubled up. */
+        grid-template-columns: 1.4fr 0.8fr 0.8fr 1.1fr;
+      }
+
+      @media (max-width: 980px) {
+        .bbg-foot-cols {
+          grid-template-columns: 1fr 1fr;
+          gap: 32px;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .bbg-foot-cols {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .bbg-foot-col {
+        min-width: 0;
+      }
+
+      .bbg-foot-brand-img {
+        height: 112px;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+        margin-bottom: 16px;
+      }
+
+      @media (max-width: 720px) {
+        .bbg-foot-brand-img { height: 88px; }
+      }
+
+      .bbg-foot-brand-tag {
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 13px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        /* sand-pale on green-deep = 5.0:1 (vs green-bio at 2.4:1 — fails). */
+        color: var(--sand-pale);
+        margin-bottom: 16px;
+      }
+
+      .bbg-foot-brand-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .bbg-foot-brand-list li {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .bbg-foot-pin {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 22px;
+        font-family: var(--font-heading);
+        font-weight: 700;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        /* Pin chip uses red as accent (per brand direction). On the green
+           footer, sand-pale fill + red text reads at ~5.6:1. */
+        background: var(--sand-pale);
+        color: var(--emergency);
+        border-radius: 999px;
+      }
+
+      .bbg-foot-brand-list a {
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--warm-white);
+        transition: color 180ms ease;
+      }
+
+      .bbg-foot-brand-list a:hover {
+        color: var(--sand-pale);
+      }
+
+      /* === NAP block (Name / Address / Phone) ========================
+         Replaces the older brand tag + phone-pill list. Plain, readable
+         text in the order Google's local SEO bots prefer. */
+
+      .bbg-foot-nap-name {
+        font-family: var(--font-heading);
+        font-weight: 700;
+        font-size: 18px;
+        color: var(--warm-white);
+        margin: 0 0 8px 0;
+      }
+
+      .bbg-foot-nap-address {
+        font-style: normal;
+        font-size: 15px;
+        line-height: 1.55;
+        color: rgba(247, 245, 241, 0.92);
+        margin: 0 0 18px 0;
+      }
+
+      .bbg-foot-nap-contact-label {
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--sand-pale);
+        margin: 0 0 8px 0;
+      }
+
+      .bbg-foot-nap-phones {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .bbg-foot-nap-phones a {
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 16px;
+        color: var(--warm-white);
+        transition: color 180ms ease;
+      }
+
+      .bbg-foot-nap-phones a:hover {
+        color: var(--sand-pale);
+      }
+
+      .bbg-foot-nap-state {
+        font-weight: 400;
+        font-size: 14px;
+        color: rgba(247, 245, 241, 0.78);
+      }
+
+      .bbg-foot-eyebrow {
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        /* On green-deep bg, 0.92 alpha gives ~5.4:1 — passes WCAG AA at 11px. */
+        color: rgba(247, 245, 241, 0.92);
+        margin-bottom: 16px;
+      }
+
+      .bbg-foot-eyebrow-spaced {
+        margin-top: 28px;
+      }
+
+      .bbg-foot-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .bbg-foot-list-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 18px;
+      }
+
+      .bbg-foot-list a,
+      .bbg-foot-sublist a {
+        font-family: var(--font-body);
+        font-size: 14px;
+        /* 0.92 alpha on green-deep = 5.4:1 — passes WCAG AA. */
+        color: rgba(247, 245, 241, 0.92);
+        transition: color 160ms ease;
+      }
+
+      .bbg-foot-list a:hover,
+      .bbg-foot-sublist a:hover {
+        /* Lighter green hover (passes 5.5:1 with sand-pale on green-deep). */
+        color: var(--sand-pale);
+      }
+
+      .bbg-foot-sublist {
+        list-style: none;
+        margin: 6px 0 0 12px;
+        padding-left: 12px;
+        border-left: 1px solid rgba(247, 245, 241, 0.12);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .bbg-foot-sublist a {
+        font-size: 13px;
+        /* 0.85 alpha on green-deep = 4.9:1 — passes WCAG AA at 13px. */
+        color: rgba(247, 245, 241, 0.85);
+      }
+
+      .bbg-foot-map {
+        position: relative;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(247, 245, 241, 0.08);
+        background: rgba(247, 245, 241, 0.04);
+        aspect-ratio: 4 / 3;
+      }
+
+      .bbg-foot-map iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
+
+      /* Legal strip — brand red so it bookends the page with the top
+         mast-bar. Both bars use --emergency + white text for symmetry. */
+      .bbg-foot-legal {
+        background: var(--emergency);
+        padding: 18px 0;
+      }
+
+      .bbg-foot-legal-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        font-family: var(--font-body);
+        font-size: 12px;
+        color: #ffffff;
+      }
+
+      .bbg-foot-legal-links {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .bbg-foot-legal-links a {
+        /* Was rgba(255,255,255,0.88) which composited to ~4.47:1 on the
+           red bar — Lighthouse flagged it as just under AA at 12px.
+           Pure white = 4.87:1, passes. */
+        color: #ffffff;
+        transition: opacity 160ms ease;
+        text-decoration: underline;
+        text-decoration-color: rgba(255, 255, 255, 0.4);
+      }
+
+      .bbg-foot-legal-links a:hover,
+      .bbg-foot-legal-links a:focus-visible {
+        color: #ffffff;
+        text-decoration: underline;
+      }
+    </style>
+    <div
+      id="mobile-call-cta"
+      class="bbg-mobile-call-bar"
+      role="region"
+      aria-label="Call our dispatch lines"
+    >
+      <a
+        href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}"
+        class="btn-primary bbg-mobile-call-btn"
+        aria-label="Call Illinois {{PHONE_PRIMARY_FORMATTED}}"
+      >
+        <svg viewBox="0 0 24 24" class="bbg-mobile-call-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+        </svg>
+        <span class="bbg-mobile-call-label">
+          <span class="bbg-mobile-call-state">Illinois</span>
+          <span class="bbg-mobile-call-num">{{PHONE_PRIMARY_FORMATTED}}</span>
+        </span>
+      </a>
+      <a
+        href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}"
+        class="btn-primary bbg-mobile-call-btn"
+        aria-label="Call Wisconsin {{PHONE_SECONDARY_FORMATTED}}"
+      >
+        <svg viewBox="0 0 24 24" class="bbg-mobile-call-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+        </svg>
+        <span class="bbg-mobile-call-label">
+          <span class="bbg-mobile-call-state">Wisconsin</span>
+          <span class="bbg-mobile-call-num">{{PHONE_SECONDARY_FORMATTED}}</span>
+        </span>
+      </a>
+    </div>
+
+    <style>
+      .bbg-mobile-call-bar {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        z-index: 30;
+        display: flex;
+        gap: 8px;
+      }
+
+      .bbg-mobile-call-btn {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 10px 12px;
+        font-size: 12px;
+        line-height: 1.15;
+        gap: 8px;
+        box-shadow:
+          0 1px 0 rgba(29, 29, 29, 0.04),
+          0 18px 40px -12px rgba(75, 101, 46, 0.5);
+      }
+
+      .bbg-mobile-call-icon {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      .bbg-mobile-call-label {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        line-height: 1.1;
+        min-width: 0;
+      }
+
+      .bbg-mobile-call-state {
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.01em;
+      }
+
+      .bbg-mobile-call-num {
+        font-weight: 500;
+        font-size: 11px;
+        opacity: 0.92;
+        white-space: nowrap;
+      }
+
+      @media (min-width: 768px) {
+        .bbg-mobile-call-bar { display: none !important; }
+      }
+    </style>
+
+    <!-- Inline interactive module to avoid extra network request -->
+    <script type="module" is:inline>
+      (() => {
+        const initializeMainLayoutInteractions = () => {
+          // Desktop sticky nav (IntersectionObserver avoids layout reads)
+          const initNavSticky = () => {
+            const nav = document.getElementById("site-nav");
+            const sentinel = document.getElementById("nav-sticky-sentinel");
+            if (!nav || !sentinel) return;
+
+            const observer = new IntersectionObserver(
+              ([entry]) => {
+                const shouldBeStuck = !entry.isIntersecting;
+                const nextValue = shouldBeStuck ? "true" : "false";
+                if (nav.dataset.stuck === nextValue) return;
+                nav.dataset.stuck = nextValue;
+              },
+              { threshold: 0 },
+            );
+
+            observer.observe(sentinel);
+          };
+
+          // Mobile sticky controls (IntersectionObserver + matchMedia)
+          const initMobileStickyControls = () => {
+            const stickyControls = document.getElementById(
+              "mobile-sticky-controls",
+            );
+            const sentinel = document.getElementById("nav-sticky-sentinel");
+            if (!stickyControls || !sentinel) return;
+
+            const mobileQuery = window.matchMedia("(max-width: 767px)");
+            let isMobile = mobileQuery.matches;
+            let isIntersecting = true;
+            let controlsVisible = false;
+
+            const setVisible = (shouldShow) => {
+              if (controlsVisible === shouldShow) return;
+              controlsVisible = shouldShow;
+              stickyControls.classList.toggle("opacity-0", !shouldShow);
+              stickyControls.classList.toggle(
+                "pointer-events-none",
+                !shouldShow,
+              );
+              stickyControls.classList.toggle("scale-90", !shouldShow);
+              stickyControls.classList.toggle("scale-100", shouldShow);
+              if (shouldShow) {
+                stickyControls.classList.remove("pop-bounce");
+                requestAnimationFrame(() =>
+                  stickyControls.classList.add("pop-bounce"),
+                );
+              }
+            };
+
+            const updateVisibility = () => {
+              if (!isMobile) {
+                setVisible(false);
+                return;
+              }
+              setVisible(!isIntersecting);
+            };
+
+            const observer = new IntersectionObserver(
+              ([entry]) => {
+                isIntersecting = entry.isIntersecting;
+                updateVisibility();
+              },
+              { threshold: 0 },
+            );
+
+            observer.observe(sentinel);
+            mobileQuery.addEventListener("change", (event) => {
+              isMobile = event.matches;
+              updateVisibility();
+            });
+            updateVisibility();
+          };
+
+          // Mobile menu open/close
+          const initMobileMenu = () => {
+            const menuTriggers = document.querySelectorAll(
+              "[data-mobile-menu-trigger]",
+            );
+            const closeButton = document.getElementById("mobile-menu-close");
+            const menu = document.getElementById("mobile-menu");
+            const menuPanel = menu?.querySelector("[data-mobile-menu-panel]");
+            const body = document.body;
+
+            if (!(menuTriggers.length && menu && menuPanel)) return;
+
+            const openMenu = () => {
+              if (menu.classList.contains("is-open")) return;
+              menu.classList.remove("hidden");
+              menu.setAttribute("aria-hidden", "false");
+              // inert prevents focusable descendants from being tabbed to
+              // when the drawer is offscreen — flipping it off here lets
+              // the menu buttons receive focus once the drawer is open.
+              menu.removeAttribute("inert");
+              requestAnimationFrame(() => {
+                menu.classList.add("is-open");
+                menuPanel.classList.add("is-open");
+              });
+              body.style.overflow = "hidden";
+            };
+
+            const closeMenu = () => {
+              if (!menu.classList.contains("is-open")) return;
+              menu.classList.remove("is-open");
+              menuPanel.classList.remove("is-open");
+              menu.setAttribute("aria-hidden", "true");
+              // Re-engage inert so closed-drawer buttons aren't tab targets.
+              // This is what makes the "aria-hidden contains focusable
+              // descendants" a11y audit pass — inert overrides tabindex.
+              menu.setAttribute("inert", "");
+              body.style.overflow = "";
+              const handleTransitionEnd = (event) => {
+                if (event.target !== menu || event.propertyName !== "opacity")
+                  return;
+                if (menu.classList.contains("is-open")) return;
+                menu.classList.add("hidden");
+                menu.removeEventListener("transitionend", handleTransitionEnd);
+              };
+              menu.addEventListener("transitionend", handleTransitionEnd);
+            };
+
+            menuTriggers.forEach((btn) =>
+              btn.addEventListener("click", openMenu),
+            );
+            closeButton?.addEventListener("click", closeMenu);
+            menu.addEventListener("click", (event) => {
+              if (event.target === menu) closeMenu();
+            });
+            document.addEventListener("keydown", (event) => {
+              if (event.key === "Escape") closeMenu();
+            });
+            menu
+              .querySelectorAll("a[href]")
+              .forEach((link) => link.addEventListener("click", closeMenu));
+
+            // Touch swipe to close
+            let touchStartX = null;
+            let touchStartY = null;
+            const SWIPE_DISTANCE = 80;
+            const SWIPE_DRIFT = 60;
+            const handleTouchStart = (event) => {
+              const touch = event.touches[0];
+              touchStartX = touch.clientX;
+              touchStartY = touch.clientY;
+            };
+            const handleTouchEnd = (event) => {
+              if (touchStartX === null || touchStartY === null) return;
+              const touch = event.changedTouches[0];
+              const deltaX = touch.clientX - touchStartX;
+              const deltaY = Math.abs(touch.clientY - touchStartY);
+              if (deltaX > SWIPE_DISTANCE && deltaY < SWIPE_DRIFT) {
+                closeMenu();
+              }
+              touchStartX = null;
+              touchStartY = null;
+            };
+            menu.addEventListener("touchstart", handleTouchStart, {
+              passive: true,
+            });
+            menu.addEventListener("touchend", handleTouchEnd);
+          };
+
+          // Mobile submenu toggles
+          const initSubmenuToggles = () => {
+            const submenuButtons = document.querySelectorAll(
+              "[data-mobile-menu-toggle]",
+            );
+            submenuButtons.forEach((button) => {
+              const submenuId = button.getAttribute("data-mobile-menu-toggle");
+              if (!submenuId) return;
+              const submenu = document.getElementById(submenuId);
+              if (!submenu) return;
+              const chevron = button.querySelector("svg");
+              button.setAttribute("aria-controls", submenuId);
+              button.addEventListener("click", () => {
+                const expanded =
+                  button.getAttribute("aria-expanded") === "true";
+                const nextState = !expanded;
+                button.setAttribute("aria-expanded", String(nextState));
+                submenu.classList.toggle("hidden", !nextState);
+                if (nextState) {
+                  submenu.classList.add("pt-2");
+                } else {
+                  submenu.classList.remove("pt-2");
+                }
+                chevron?.classList.toggle("rotate-180", nextState);
+              });
+            });
+          };
+
+          // Contact hash scroll
+          const initContactFormHash = () => {
+            if (window.location.hash === "#contact_form") {
+              const form = document.getElementById("contact_form");
+              if (form) {
+                requestAnimationFrame(() => {
+                  form.scrollIntoView({ behavior: "auto", block: "start" });
+                  // Avoid reading window.innerWidth here, use a CSS-based approach or a safer delay
+                  // if absolutely needed, but for LCP we want to avoid Layout during load.
+                  const isMobile =
+                    window.matchMedia("(max-width: 767px)").matches;
+                  const offset = isMobile ? 240 : 180;
+                  window.scrollBy({ top: -offset, behavior: "auto" });
+                });
+              }
+            }
+          };
+
+          // Initialize all interactions
+          initNavSticky();
+          initMobileStickyControls();
+          initMobileMenu();
+          initSubmenuToggles();
+          initContactFormHash();
+        };
+
+        if (document.readyState === "loading") {
+          document.addEventListener(
+            "DOMContentLoaded",
+            initializeMainLayoutInteractions,
+          );
+        } else {
+          initializeMainLayoutInteractions();
+        }
+      })();
+    </script>
+    <style is:inline>
+      @media (min-width: 768px) {
+        #mobile-call-cta {
+          display: none !important;
+        }
+      }
+    </style>
+
+    {/*
+      CallRail dynamic-number swap ({{BRAND_ABBREV}} — company {{CALLRAIL_COMPANY_ID}}).
+
+      Per CallRail's own placement guidance (Cory confirmed May 2026):
+      this snippet must live between the body tags, NOT in <head>. The
+      account-side verifier "never returns a result" when the script is
+      head-mounted, even though it loads correctly.
+
+      Loaded eagerly (no defer) at the end of <body> so it runs
+      synchronously right after the DOM finishes parsing — CallRail's
+      number-swap pass needs the tel: links present in the DOM, which
+      they are by the time we reach this point. This is the spot
+      equivalent to "put the script tag right before </body>".
+    */}
+    {/* IMPORTANT: is:inline is required. Without it, Astro processes the
+        <script> tag as a build-time module — since there's no body to
+        bundle (just an external src), Astro silently strips the tag from
+        the output HTML. That's exactly what happened on the first deploy
+        of this revert: PageSpeed showed cdn.callreports.com loading from
+        the <head> preconnect but the actual script never appeared. The
+        Turnstile script tag below the form has is:inline for the same
+        reason. Do not remove it. */}
+    <script is:inline src="https://cdn.callreports.com/companies/{{CALLRAIL_COMPANY_ID}}/{{CALLRAIL_SWAP_KEY}}/12/swap.js"></script>
+  </body>
+</html>

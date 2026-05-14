@@ -1,0 +1,609 @@
+---
+import type { BlogListSection } from "../../types/sections";
+import { splitHighlight } from "../../utils/highlightTitle";
+import { fetchAllBlogPosts } from "../../lib/queries/allBlogPosts";
+import { optimizeImageUrl } from "../../lib/imageOptimizer";
+
+const props = Astro.props as BlogListSection;
+const pageSlug = (Astro.props as { pageSlug?: string }).pageSlug ?? "";
+const prioritizeFirstImage = pageSlug === "blog";
+const titleSegments = splitHighlight(props.title, props.highlightText);
+const rawPosts = await fetchAllBlogPosts();
+const normalizeSlug = (slug: any) =>
+  typeof slug === "string" ? slug : (slug?.current ?? "");
+const postImageSizes =
+  "(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw";
+
+const buildPostImage = (url?: string | null) => {
+  if (!url) return { src: null, srcset: null };
+  const desktop = optimizeImageUrl(url, {
+    width: 1000,
+    height: 500,
+    fit: "crop",
+    quality: 82,
+  });
+  const tablet = optimizeImageUrl(url, {
+    width: 800,
+    height: 400,
+    fit: "crop",
+    quality: 80,
+  });
+  const mobile = optimizeImageUrl(url, {
+    width: 600,
+    height: 300,
+    fit: "crop",
+    quality: 78,
+  });
+  return {
+    src: desktop,
+    srcset: `${mobile} 480w, ${tablet} 720w, ${desktop} 960w`,
+  };
+};
+
+// Pre-optimize images and structure data
+const allPosts = rawPosts
+  .map((post: any) => {
+    const slug = normalizeSlug(post.slug);
+    const { src, srcset } = buildPostImage(post.featuredImage?.asset?.url);
+    return {
+      ...post,
+      slug,
+      optimizedImage: src,
+      optimizedImageSrcSet: srcset,
+    };
+  })
+  .filter((post: any) => Boolean(post.slug));
+
+const resolvedPostsPerPage = Math.max(
+  1,
+  typeof props.postsToShow === "number" && props.postsToShow > 0
+    ? props.postsToShow
+    : 9,
+);
+const perPageSelection =
+  resolvedPostsPerPage >= allPosts.length
+    ? "all"
+    : String(resolvedPostsPerPage);
+
+// Filter by category if specified
+let posts: any[] = allPosts;
+if (props.filterCategory) {
+  posts = allPosts.filter(
+    (p: any) =>
+      Array.isArray(p.categories) &&
+      p.categories.includes(props.filterCategory as string),
+  );
+}
+
+// Initial sort (Latest)
+posts.sort(
+  (a, b) =>
+    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+);
+
+const initialPosts = posts.slice(0, resolvedPostsPerPage);
+const initialTotalPages = Math.ceil(posts.length / resolvedPostsPerPage);
+---
+
+<section class="section-inner-lg w-full bg-white">
+  {
+    props.title && (
+      <h1 class="mb-8 text-4xl font-bold text-slate-900">
+        {titleSegments.map((segment) =>
+          segment.highlight ? (
+            <span class="bbg-blog-leaf">{segment.text}</span>
+          ) : (
+            segment.text
+          ),
+        )}
+      </h1>
+    )
+  }
+  {
+    props.description && (
+      <p class="mb-8 text-lg text-slate-600">{props.description}</p>
+    )
+  }
+  <div class="mb-8 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:p-6">
+    <div
+      class="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
+    >
+      <div>
+        <label
+          class="mb-2 block text-xs font-semibold text-slate-900 uppercase tracking-wider"
+          >Category</label
+        >
+        <select
+          id="categoryFilter"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+        >
+          <option value="">All Categories</option>
+        </select>
+      </div>
+
+      <div>
+        <label
+          class="mb-2 block text-xs font-semibold text-slate-900 uppercase tracking-wider"
+          >Sort By</label
+        >
+        <select
+          id="sortFilter"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+        >
+          <option value="latest">Latest</option>
+          <option value="oldest">Oldest</option>
+          <option value="title-asc">Title (A-Z)</option>
+          <option value="title-desc">Title (Z-A)</option>
+        </select>
+      </div>
+
+      <div>
+        <label
+          class="mb-2 block text-xs font-semibold text-slate-900 uppercase tracking-wider"
+          >From Date</label
+        >
+        <input
+          type="date"
+          id="dateFromFilter"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+        />
+      </div>
+
+      <div>
+        <label
+          class="mb-2 block text-xs font-semibold text-slate-900 uppercase tracking-wider"
+          >To Date</label
+        >
+        <input
+          type="date"
+          id="dateToFilter"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+        />
+      </div>
+
+      <div>
+        <label
+          class="mb-2 block text-xs font-semibold text-slate-900 uppercase tracking-wider"
+          >Posts Per Page</label
+        >
+        <select
+          id="perPageFilter"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+        >
+          <option value="6" selected={perPageSelection === "6"}>6</option>
+          <option value="9" selected={perPageSelection === "9"}>9</option>
+          <option value="12" selected={perPageSelection === "12"}>12</option>
+          <option value="all" selected={perPageSelection === "all"}>All</option>
+        </select>
+      </div>
+
+      <div class="flex items-end">
+        <button id="resetFilters" class="btn-primary"> Reset </button>
+      </div>
+    </div>
+  </div>
+
+  {/* Posts Grid */}
+  <div>
+    <div
+      id="postsContainer"
+      class="mb-12 grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+    >
+      {
+        initialPosts.map((post, index) => (
+          <article
+            class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer"
+            onclick={`window.location.href='/blog/${post.slug}/'`}
+          >
+            {post.optimizedImage && (
+              <div class="relative aspect-[2/1] w-full overflow-hidden bg-slate-100">
+                <img
+                  src={post.optimizedImage}
+                  srcset={post.optimizedImageSrcSet ?? undefined}
+                  sizes={postImageSizes}
+                  alt={post.featuredImage?.alt || post.title}
+                  width={1000}
+                  height={500}
+                  class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                  loading={
+                    index === 0 && prioritizeFirstImage ? "eager" : "lazy"
+                  }
+                  fetchpriority={
+                    index === 0 && prioritizeFirstImage ? "high" : "auto"
+                  }
+                  decoding="async"
+                />
+              </div>
+            )}
+            <div class="p-6">
+              <div class="mb-2 flex items-center gap-2">
+                {post.categories &&
+                  post.categories.length > 0 &&
+                  post.categories.map((category: string) => (
+                    <span class="inline-block rounded-full bg-[--sand-pale] px-3 py-1 text-xs font-semibold text-[--green-deep]">
+                      {category}
+                    </span>
+                  ))}
+                {post.publishedAt && (
+                  <span class="text-xs text-slate-500">
+                    {new Date(post.publishedAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                )}
+              </div>
+              <h2 class="mb-2 text-xl font-semibold text-slate-900 line-clamp-2">
+                <a href={`/blog/${post.slug}/`} class="hover:text-[--green-primary]">
+                  {post.title}
+                </a>
+              </h2>
+              <p class="mb-4 text-slate-600 line-clamp-2">
+                {post.excerpt || "Read more about this post..."}
+              </p>
+              {post.tags && post.tags.length > 0 && (
+                <div class="mb-4 flex flex-wrap gap-2">
+                  {post.tags.slice(0, 3).map((tag: string) => (
+                    <span class="text-xs text-slate-500">#{tag}</span>
+                  ))}
+                </div>
+              )}
+              <a href={`/blog/${post.slug}/`} class="btn-primary inline-flex">
+                Read More
+              </a>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+
+    <div
+      id="noResults"
+      class="hidden rounded-xl border border-slate-200 bg-slate-50 p-8 text-center"
+    >
+      <p class="text-slate-600">No posts found matching your filters.</p>
+    </div>
+
+    {/* Pagination */}
+    <div
+      class="mt-8 md:mt-12 flex flex-col items-center justify-center gap-2 sm:gap-4"
+    >
+      <button
+        id="prevBtn"
+        class="w-full sm:w-auto rounded-lg border border-slate-300 px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled
+      >
+        ← Previous
+      </button>
+      <div id="pageNumbers" class="flex gap-1 flex-wrap justify-center">
+        {
+          Array.from({ length: initialTotalPages }, (_, i) => i + 1).map(
+            (pageNum) => (
+              <button
+                class={`px-3 py-1 rounded-lg text-sm font-medium ${pageNum === 1 ? "bg-yellow-400 text-slate-900 font-semibold" : "border border-slate-300 text-slate-700 hover:bg-slate-50"}`}
+                disabled={pageNum === 1}
+              >
+                {pageNum}
+              </button>
+            ),
+          )
+        }
+      </div>
+      <button
+        id="nextBtn"
+        class="w-full sm:w-auto rounded-lg border border-slate-300 px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={initialTotalPages <= 1}
+      >
+        Next →
+      </button>
+    </div>
+
+    {
+      pageSlug === "blog" && allPosts.length > 0 && (
+        <nav class="sr-only" aria-label="All blog posts">
+          <h2 class="sr-only">All blog posts</h2>
+          <ul>
+            {allPosts.map((post) => (
+              <li>
+                <a href={`/blog/${post.slug}/`}>{post.title}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
+  </div>
+</section>
+
+<style>
+  /* Unified highlight — red italic, matches hero. */
+  .bbg-blog-leaf {
+    display: inline-block;
+    color: var(--emergency);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+</style>
+
+<script
+  is:inline
+  define:vars={{
+    posts: JSON.stringify(allPosts),
+    postsPerPageValue: resolvedPostsPerPage,
+  }}
+>
+  const normalizeSlug = (slug) =>
+    typeof slug === "string" ? slug : (slug?.current ?? "");
+  const allPosts = JSON.parse(posts)
+    .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }))
+    .filter((p) => Boolean(p.slug));
+  const defaultPostsPerPage =
+    Number(postsPerPageValue) > 0 ? Number(postsPerPageValue) : 9;
+  let postsPerPage = defaultPostsPerPage;
+  let currentPage = 1;
+  let filteredPosts = [...allPosts];
+  // Sort by latest initially to match server render
+  filteredPosts.sort(
+    (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt),
+  );
+  const postImageSizes =
+    "(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw";
+
+  const categoryFilter = document.getElementById("categoryFilter");
+  const sortFilter = document.getElementById("sortFilter");
+  const dateFromFilter = document.getElementById("dateFromFilter");
+  const dateToFilter = document.getElementById("dateToFilter");
+  const perPageFilter = document.getElementById("perPageFilter");
+  const resetFiltersBtn = document.getElementById("resetFilters");
+  const postsContainer = document.getElementById("postsContainer");
+  const noResults = document.getElementById("noResults");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const pageNumbers = document.getElementById("pageNumbers");
+
+  // Populate categories
+  const categories = [
+    ...new Set(
+      allPosts.flatMap((p) =>
+        Array.isArray(p.categories) ? p.categories.filter(Boolean) : [],
+      ),
+    ),
+  ];
+  categories.forEach((cat) => {
+    const option = document.createElement("option");
+    option.value = cat;
+    option.textContent = cat;
+    categoryFilter.appendChild(option);
+  });
+
+  function renderPosts(posts) {
+    postsContainer.innerHTML = "";
+
+    if (posts.length === 0) {
+      postsContainer.classList.add("hidden");
+      noResults.classList.remove("hidden");
+      updatePagination(0);
+      return;
+    }
+
+    postsContainer.classList.remove("hidden");
+    noResults.classList.add("hidden");
+
+    const startIdx = (currentPage - 1) * postsPerPage;
+    const endIdx = startIdx + postsPerPage;
+    const paginatedPosts = posts.slice(startIdx, endIdx);
+
+    paginatedPosts.forEach((post) => {
+      const slug = normalizeSlug(post.slug);
+      if (!slug) return;
+
+      const article = document.createElement("article");
+      article.className =
+        "group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer";
+
+      const imageHTML = post.optimizedImage
+        ? `<div class="relative aspect-[2/1] w-full overflow-hidden bg-slate-100">
+             <img src="${post.optimizedImage}" srcset="${post.optimizedImageSrcSet ?? ""}" sizes="${postImageSizes}" alt="${post.featuredImage?.alt || post.title}" width="1000" height="500" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" loading="lazy" decoding="async" />
+           </div>`
+        : "";
+
+      const categoryHTML =
+        post.categories && post.categories.length > 0
+          ? post.categories
+              .map(
+                (category) =>
+                  `<span class="inline-block rounded-full bg-[--sand-pale] px-3 py-1 text-xs font-semibold text-[--green-deep]">${category}</span>`,
+              )
+              .join("")
+          : "";
+
+      const dateHTML = post.publishedAt
+        ? `<span class="text-xs text-slate-500">${new Date(post.publishedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>`
+        : "";
+
+      const tagsHTML =
+        post.tags && post.tags.length > 0
+          ? `<div class="mb-4 flex flex-wrap gap-2">
+             ${post.tags
+               .slice(0, 3)
+               .map(
+                 (tag) => `<span class="text-xs text-slate-500">#${tag}</span>`,
+               )
+               .join("")}
+           </div>`
+          : "";
+
+      article.innerHTML = `
+        ${imageHTML}
+        <div class="p-6">
+          <div class="mb-2 flex items-center gap-2">
+            ${categoryHTML}
+            ${dateHTML}
+          </div>
+          <h3 class="mb-2 text-xl font-semibold text-slate-900 line-clamp-2">
+            <a href="/blog/${slug}/" class="hover:text-[--green-primary]">
+              ${post.title}
+            </a>
+          </h3>
+          <p class="mb-4 text-slate-600 line-clamp-2">${post.excerpt || "Read more about this post..."}</p>
+          ${tagsHTML}
+          <a href="/blog/${slug}/" class="btn-primary inline-flex">
+            Read More
+          </a>
+        </div>
+      `;
+
+      // Make the entire card clickable
+      article.addEventListener("click", () => {
+        window.location.href = `/blog/${slug}/`;
+      });
+
+      postsContainer.appendChild(article);
+    });
+
+    updatePagination(posts.length);
+  }
+
+  function updatePagination(totalPosts) {
+    const totalPages = Math.ceil(totalPosts / postsPerPage);
+    pageNumbers.innerHTML = "";
+
+    prevBtn.disabled = currentPage === 1 || totalPages === 0;
+    nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+
+    for (let i = 1; i <= totalPages; i++) {
+      const btn = document.createElement("button");
+      btn.className = `px-3 py-1 rounded-lg text-sm font-medium ${
+        i === currentPage
+          ? "bg-yellow-400 text-slate-900 font-semibold"
+          : "border border-slate-300 text-slate-700 hover:bg-slate-50"
+      }`;
+      btn.textContent = i;
+      btn.disabled = i === currentPage;
+      btn.addEventListener("click", () => {
+        currentPage = i;
+        renderPosts(filteredPosts);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      pageNumbers.appendChild(btn);
+    }
+  }
+
+  function filterAndSort() {
+    let filtered = [...allPosts];
+
+    // Filter by category
+    if (categoryFilter.value) {
+      filtered = filtered.filter(
+        (p) =>
+          Array.isArray(p.categories) &&
+          p.categories.includes(categoryFilter.value),
+      );
+    }
+
+    // Filter by date range
+    if (dateFromFilter.value) {
+      const fromDate = new Date(dateFromFilter.value);
+      filtered = filtered.filter((p) => new Date(p.publishedAt) >= fromDate);
+    }
+
+    if (dateToFilter.value) {
+      const toDate = new Date(dateToFilter.value);
+      toDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter((p) => new Date(p.publishedAt) <= toDate);
+    }
+
+    // Sort
+    const sortValue = sortFilter.value;
+    if (sortValue === "latest") {
+      filtered.sort(
+        (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt),
+      );
+    } else if (sortValue === "oldest") {
+      filtered.sort(
+        (a, b) => new Date(a.publishedAt) - new Date(b.publishedAt),
+      );
+    } else if (sortValue === "title-asc") {
+      filtered.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortValue === "title-desc") {
+      filtered.sort((a, b) => b.title.localeCompare(a.title));
+    }
+
+    filteredPosts = filtered;
+    currentPage = 1;
+    renderPosts(filtered);
+  }
+
+  // Event listeners
+  categoryFilter.addEventListener("change", filterAndSort);
+  sortFilter.addEventListener("change", filterAndSort);
+  dateFromFilter.addEventListener("change", filterAndSort);
+  dateToFilter.addEventListener("change", filterAndSort);
+
+  resetFiltersBtn.addEventListener("click", () => {
+    categoryFilter.value = "";
+    sortFilter.value = "latest";
+    dateFromFilter.value = "";
+    dateToFilter.value = "";
+    if (perPageFilter) {
+      const resetValue =
+        defaultPostsPerPage >= allPosts.length
+          ? "all"
+          : String(defaultPostsPerPage);
+      perPageFilter.value = resetValue;
+      postsPerPage =
+        resetValue === "all" ? allPosts.length : defaultPostsPerPage;
+    } else {
+      postsPerPage = defaultPostsPerPage;
+    }
+    currentPage = 1;
+    filterAndSort();
+  });
+
+  prevBtn.addEventListener("click", () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderPosts(filteredPosts);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+
+  nextBtn.addEventListener("click", () => {
+    const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderPosts(filteredPosts);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+
+  if (perPageFilter) {
+    perPageFilter.addEventListener("change", (event) => {
+      const value = event.target?.value;
+      postsPerPage =
+        value === "all" ? allPosts.length : Math.max(1, Number(value) || 9);
+      currentPage = 1;
+      renderPosts(filteredPosts);
+    });
+  }
+
+  // Add event listeners to initial pagination buttons
+  const initialPageButtons = pageNumbers.querySelectorAll("button");
+  initialPageButtons.forEach((btn, index) => {
+    btn.addEventListener("click", () => {
+      currentPage = index + 1;
+      renderPosts(filteredPosts);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  // Initial render is NOT called to preserve server-rendered content
+  // But we need to attach event listeners to the server-rendered elements if needed?
+  // The server rendered elements have onclick attributes, so they work.
+  // But pagination buttons need listeners.
+  // I added listeners to initialPageButtons above.
+
+  // However, if the user changes a filter, we MUST call filterAndSort.
+  // And we need to ensure the state is consistent.
+</script>

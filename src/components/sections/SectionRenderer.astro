@@ -1,0 +1,63 @@
+---
+import HeroSection from './HeroSection.astro';
+import ServiceGridSection from './ServiceGridSection.astro';
+import ImageCardSection from './ImageCardSection.astro';
+import CtaSection from './CtaSection.astro';
+import ContactSection from './ContactSection.astro';
+import ServiceAreaSection from './ServiceAreaSection.astro';
+import BlogListSection from './BlogListSection.astro';
+import IconGridSection from './IconGridSection.astro';
+import TwoColTextImageSection from './TwoColTextImageSection.astro';
+import LeadFormSection from './LeadFormSection.astro';
+import HtmlSection from './HtmlSection.astro';
+import FaqSection from './FaqSection.astro';
+import AreasSection from './AreasSection.astro';
+import StepsSection from './StepsSection.astro';
+import type { Sections } from '../../types/sections';
+
+const { sections = [], pageSlug } = Astro.props as { sections: Sections[]; pageSlug?: string };
+
+const componentMap = {
+  heroSection: HeroSection,
+  serviceGridSection: ServiceGridSection,
+  processSection: ImageCardSection,
+  ctaSection: CtaSection,
+  contactSection: ContactSection,
+  serviceAreaSection: ServiceAreaSection,
+  blogListSection: BlogListSection,
+  iconGridSection: IconGridSection,
+  twoColTextImageSection: TwoColTextImageSection,
+  leadFormSection: LeadFormSection,
+  htmlSection: HtmlSection,
+  faqSection: FaqSection,
+  areasSection: AreasSection,
+  stepsSection: StepsSection
+} as const;
+
+const fullBleedSections = new Set(['heroSection', 'processSection', 'leadFormSection']);
+---
+
+{sections.map((section) => {
+  const Component = componentMap[section._type];
+  if (!Component) {
+    return null;
+  }
+
+  // Check if section has a non-default branded background
+  const hasColorTheme = 'colorTheme' in section || 'backgroundTheme' in section;
+  const colorTheme = (section as any)?.colorTheme ?? (section as any)?.backgroundTheme;
+  const isColoredSection =
+    hasColorTheme &&
+    colorTheme &&
+    ['blue', 'darkBlue', 'yellow', 'oliveGreen', 'darkGreen', 'cream'].includes(colorTheme);
+
+  const isCtaFullWidth =
+    section._type === 'ctaSection' && section.layoutStyle && section.layoutStyle !== 'boxed';
+  const isContactFullWidth = section._type === 'contactSection';
+  const isColorBackgroundFullWidth = isColoredSection;
+  const isFullBleed = isCtaFullWidth || isContactFullWidth || isColorBackgroundFullWidth || fullBleedSections.has(section._type);
+
+  return (
+    <Component {...section} pageSlug={pageSlug} />
+  );
+})} 

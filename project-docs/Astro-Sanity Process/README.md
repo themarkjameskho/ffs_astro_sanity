@@ -1,0 +1,59 @@
+# Astro + Sanity Process Playbook
+
+This folder contains the reusable documentation set for bootstrapping a new Astro + Sanity project — including migrating an existing WordPress site onto the stack. Hand this entire directory to any developer, non-technical stakeholder, or automation agent and they can follow the lifecycle without extra context.
+
+## Pick the right entry point
+
+| If you're doing this... | Start here |
+|---|---|
+| Starting a brand-new project from scratch | `astro-sanity-development-process.md` (11 phases) |
+| Migrating an existing WordPress site to Astro+Sanity | `wordpress-to-astro-migration.md` (run alongside the main playbook) |
+| Day-to-day code changes on an already-live site | `dev-to-live-workflow.md` |
+| Setting up or troubleshooting deployment | `deployment.md` |
+
+## How to Use
+1. Pick the right entry point from the table above.
+2. For new projects, kick off with `astro-sanity-development-process.md` and progress phase by phase.
+3. For migrations, run `wordpress-to-astro-migration.md` in parallel — its phases (A through H) overlay onto Phases 1, 6, 7, and 10 of the main playbook.
+4. Populate each supporting template as you work (requirements, content model, backlog, etc.).
+5. Store designer deliverables (PDF/MD) inside `design-inputs/` and capture your analysis in the paired review/implementation documents.
+6. Keep artefacts updated — each Markdown file is the single source of truth for that topic.
+
+## Key Files
+| File | Purpose |
+|------|---------|
+| `astro-sanity-development-process.md` | End-to-end development phases, checklists, exit criteria. |
+| `wordpress-to-astro-migration.md` | Migration-specific playbook: fork cleanup, URL inventory, content import, DNS cutover. |
+| `dev-to-live-workflow.md` | Daily ship loop: local change → commit → deploy → verify. |
+| `requirements.md` | Business goals, audience, scope, success metrics. |
+| `architecture/overview.md` | System diagram, environment matrix, operational notes. |
+| `backlog.md` | Lightweight release planning and prioritized work items. |
+| `components.md` | Component inventory with implementation status and locations. |
+| `content-model.md` | Sanity schema documentation and editorial guidelines. |
+| `global-styles-review.md` | Findings from designer global-style docs (accessibility, SEO risks). |
+| `global-styles-implementation-plan.md` | Mapping from global-style decisions to Tailwind/CSS implementation. |
+| `integration.md` | Sanity ↔ Astro integration details (env vars, webhooks, preview). |
+| `page-contracts.md` | Required fields and component mapping per page template. |
+| `quality-matrix.md` | Performance, accessibility, SEO targets and checklists. |
+| `test-plan.md` | Manual + automated testing scope and UAT sign-off tracking. |
+| `deployment.md` | Project-specific release checklist, environment variables, rollback strategy. |
+| `retrospectives/` | Ongoing post-launch insights and action items. |
+
+## New Project Checklist
+- [ ] Copy this folder into the new repo’s `project-docs/`.
+- [ ] Update `requirements.md`, `architecture/overview.md`, and `backlog.md` during discovery.
+- [ ] Add designer files to `design-inputs/` and complete the global styles review + implementation plan before coding UI.
+- [ ] Keep `quality-matrix.md`, `test-plan.md`, and `deployment.md` current as you iterate.
+- [ ] After launch, track retrospectives and improvements in `retrospectives/`.
+
+## WordPress Migration Checklist
+- [ ] Read `wordpress-to-astro-migration.md` end-to-end before pushing the first commit.
+- [ ] Phase A: credentials vault + WP baseline archived
+- [ ] Phase B: URL inventory CSV complete
+- [ ] Phase C: inherited-fork cleanup (no old brand/domain/GA/CallRail IDs in source)
+- [ ] Phase D: content imported into Sanity (counts match WP baseline)
+- [ ] Phase E: redirect map in `vercel.json` + documented in `reference/deployment/`
+- [ ] Phase F: parity audit signed off on preview URL
+- [ ] Phase G: DNS swap executed (apex A record, no apex CNAME)
+- [ ] Phase H: post-cutover phone-call + form + GA Realtime tests passed
+

@@ -1,0 +1,20 @@
+---
+type Props = {
+  text?: string;
+  headingLevel?: 'h2' | 'h3' | 'p' | 'div';
+  class?: string;
+};
+
+const { text, headingLevel = 'p', class: className = '' } = Astro.props as Props;
+const content = text?.trim();
+
+if (!content) {
+  return null;
+}
+
+const Tag = headingLevel;
+const baseClass = 'text-lg md:text-xl font-bold leading-snug';
+const classes = [baseClass, className].filter(Boolean).join(' ');
+---
+
+<Tag class={classes}>{content}</Tag>

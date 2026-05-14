@@ -1,0 +1,448 @@
+---
+/**
+ * AreasSection — v5-modern rebuild.
+ *
+ * Same Sanity props (title, description, theme, stateGroups[]).
+ * Content authors drop in state groups with city links; we render a
+ * centered section header followed by per-state grids of pill cards.
+ *
+ * Critical bug fix (vs. previous version): the legacy implementation
+ * used `bg-[--green-deep]` Tailwind v3 syntax that v4 silently drops,
+ * which caused white-on-white invisibility on the dark theme. This
+ * rewrite uses scoped CSS classes so contrast can never regress.
+ */
+import type { AreasSection } from '../../types/sections';
+import { normalizeInternalHref } from '../../lib/links';
+
+const props = Astro.props as AreasSection;
+const stateGroups = props.stateGroups ?? [];
+const resolveLink = (link?: string) => normalizeInternalHref(link);
+
+const rawTheme = props.theme ?? 'white';
+const themeName =
+  (
+    {
+      blue: 'oliveGreen',
+      darkBlue: 'darkGreen',
+      yellow: 'cream',
+    } as Record<string, string>
+  )[rawTheme] ?? rawTheme;
+const isDarkSection = themeName === 'oliveGreen' || themeName === 'darkGreen';
+const isCreamSection = themeName === 'cream';
+
+import { splitHighlight } from '../../utils/highlightTitle';
+const titleSegments = props.title ? splitHighlight(props.title, (props as any).highlightText) : [];
+
+const totalCities = stateGroups.reduce(
+  (count, group) => count + (group.areas?.length ?? 0),
+  0,
+);
+---
+
+<section class={`bbg-section bbg-areas ${isDarkSection ? 'bbg-areas-dark' : isCreamSection ? 'bbg-areas-cream' : 'bbg-areas-light'}`}>
+  <div class="bbg-wrap">
+    {(props.title || props.description) && (
+      <div class="bbg-areas-head">
+        <span class="bbg-areas-eyebrow">
+          <span class="bbg-areas-eyebrow-dot" aria-hidden="true"></span>
+          Service coverage
+        </span>
+        {props.title && (
+          <h2 class="bbg-areas-title">
+            {titleSegments.map((segment) =>
+              segment.highlight ? (
+                <span class={isDarkSection ? 'bbg-areas-leaf-dark' : 'bbg-areas-leaf'}>{segment.text}</span>
+              ) : (
+                <span>{segment.text}</span>
+              )
+            )}
+          </h2>
+        )}
+        {props.description && (
+          <p class="bbg-areas-desc">{props.description}</p>
+        )}
+        {totalCities > 0 && (
+          <p class="bbg-areas-count">
+            <strong>{totalCities}</strong> communities served across {stateGroups.length} state{stateGroups.length === 1 ? '' : 's'}
+          </p>
+        )}
+      </div>
+    )}
+
+    {stateGroups.length > 0 && (
+      <div class="bbg-areas-list">
+        {stateGroups.map((group) => (
+          <div class="bbg-areas-group">
+            {group.stateTitle && (
+              <div class="bbg-areas-state-head">
+                <span class="bbg-areas-state-rule" aria-hidden="true"></span>
+                <h3 class="bbg-areas-state-title">{group.stateTitle}</h3>
+                <span class="bbg-areas-state-rule" aria-hidden="true"></span>
+              </div>
+            )}
+
+            {group.areas?.length > 0 && (
+              <ul class="bbg-areas-grid" aria-label={`Cities in ${group.stateTitle ?? 'this state'}`}>
+                {group.areas.map((area) => {
+                  const href = resolveLink(area.link);
+                  const label = area.cityName;
+
+                  const content = (
+                    <span class="bbg-areas-card">
+                      <span class="bbg-areas-pin" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M12 22s8-7.5 8-13a8 8 0 1 0-16 0c0 5.5 8 13 8 13z" />
+                          <circle cx="12" cy="9" r="3" />
+                        </svg>
+                      </span>
+                      <span class="bbg-areas-name">{label}</span>
+                      {href && (
+                        <span class="bbg-areas-arrow" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14M13 6l6 6-6 6" />
+                          </svg>
+                        </span>
+                      )}
+                    </span>
+                  );
+
+                  return (
+                    <li>
+                      {href ? (
+                        <a href={href} class="bbg-areas-link" aria-label={`${label} bed bug services`}>
+                          {content}
+                        </a>
+                      ) : (
+                        content
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .bbg-areas-light { background: var(--warm-white); }
+  .bbg-areas-cream { background: var(--sand-pale); }
+  .bbg-areas-dark  { background: var(--green-deep); color: var(--warm-white); }
+
+  /* === Head ======================================================== */
+  .bbg-areas-head {
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto 56px;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-areas-head { margin-bottom: 36px; }
+  }
+
+  .bbg-areas-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--emergency);
+    margin-bottom: 18px;
+  }
+
+  .bbg-areas-dark .bbg-areas-eyebrow { color: var(--sand-pale); }
+
+  .bbg-areas-eyebrow-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--emergency);
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.18);
+  }
+
+  .bbg-areas-dark .bbg-areas-eyebrow-dot {
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.32);
+  }
+
+  .bbg-areas-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-black);
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .bbg-areas-dark .bbg-areas-title { color: var(--warm-white); }
+
+  /* Unified highlight — red italic on light, sand-pale italic on dark. */
+  .bbg-areas-leaf {
+    display: inline-block;
+    color: var(--emergency);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+  .bbg-areas-leaf-dark {
+    display: inline-block;
+    color: var(--sand-pale);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+
+  .bbg-areas-desc {
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin: 16px 0 0;
+  }
+
+  .bbg-areas-dark .bbg-areas-desc { color: rgba(247, 245, 241, 0.92); }
+
+  .bbg-areas-count {
+    margin: 16px 0 0;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+  }
+
+  .bbg-areas-count strong {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--green-deep);
+  }
+
+  .bbg-areas-dark .bbg-areas-count {
+    color: rgba(247, 245, 241, 0.85);
+  }
+
+  .bbg-areas-dark .bbg-areas-count strong {
+    color: var(--sand-pale);
+  }
+
+  /* === State groups list =========================================== */
+  .bbg-areas-list {
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-areas-list { gap: 40px; }
+  }
+
+  /* === State header (rule — title — rule) ========================== */
+  .bbg-areas-state-head {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 24px;
+  }
+
+  .bbg-areas-state-rule {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(94, 127, 58, 0.32) 50%,
+      transparent 100%
+    );
+  }
+
+  .bbg-areas-dark .bbg-areas-state-rule {
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(247, 245, 241, 0.32) 50%,
+      transparent 100%
+    );
+  }
+
+  .bbg-areas-state-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(20px, 2.4vw, 26px);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    color: var(--ink-black);
+    margin: 0;
+    flex-shrink: 0;
+    padding: 0 8px;
+  }
+
+  .bbg-areas-dark .bbg-areas-state-title { color: var(--warm-white); }
+
+  /* === City grid ===================================================
+   * Flexbox so partial rows (like Wisconsin's 3 cities) center themselves
+   * instead of left-aligning to a 4-column grid. Items are fixed-width
+   * so spacing stays consistent across rows. */
+  .bbg-areas-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .bbg-areas-grid > li {
+    flex: 0 1 240px;
+    min-width: 200px;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-areas-grid {
+      gap: 10px;
+    }
+
+    .bbg-areas-grid > li {
+      flex: 1 1 calc(50% - 10px);
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .bbg-areas-grid > li {
+      flex: 1 1 100%;
+    }
+  }
+
+  .bbg-areas-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    border-radius: 16px;
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .bbg-areas-link:hover {
+    transform: translateY(-2px);
+  }
+
+  .bbg-areas-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: var(--warm-white);
+    border: 1px solid rgba(29, 29, 29, 0.08);
+    box-shadow: 0 1px 0 rgba(29, 29, 29, 0.02);
+    transition:
+      border-color 220ms ease,
+      box-shadow 220ms ease,
+      background 220ms ease;
+  }
+
+  .bbg-areas-link:hover .bbg-areas-card,
+  .bbg-areas-link:focus-visible .bbg-areas-card {
+    border-color: var(--green-primary);
+    box-shadow:
+      0 1px 0 rgba(29, 29, 29, 0.02),
+      0 12px 24px -16px rgba(94, 127, 58, 0.32);
+  }
+
+  .bbg-areas-cream .bbg-areas-card {
+    background: var(--warm-white);
+    border-color: rgba(29, 29, 29, 0.06);
+  }
+
+  .bbg-areas-dark .bbg-areas-card {
+    background: rgba(247, 245, 241, 0.06);
+    border-color: rgba(247, 245, 241, 0.18);
+    box-shadow: none;
+    backdrop-filter: blur(2px);
+  }
+
+  .bbg-areas-dark .bbg-areas-link:hover .bbg-areas-card,
+  .bbg-areas-dark .bbg-areas-link:focus-visible .bbg-areas-card {
+    background: rgba(247, 245, 241, 0.12);
+    border-color: var(--sand-pale);
+  }
+
+  /* Pin icon chip */
+  .bbg-areas-pin {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(94, 127, 58, 0.12);
+    color: var(--green-deep);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 220ms ease, color 220ms ease;
+  }
+
+  .bbg-areas-pin svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .bbg-areas-link:hover .bbg-areas-pin,
+  .bbg-areas-link:focus-visible .bbg-areas-pin {
+    background: var(--green-deep);
+    color: var(--warm-white);
+  }
+
+  .bbg-areas-dark .bbg-areas-pin {
+    background: var(--sand-pale);
+    color: var(--emergency);
+  }
+
+  .bbg-areas-dark .bbg-areas-link:hover .bbg-areas-pin,
+  .bbg-areas-dark .bbg-areas-link:focus-visible .bbg-areas-pin {
+    background: var(--warm-white);
+    color: var(--emergency);
+  }
+
+  /* City name */
+  .bbg-areas-name {
+    flex: 1;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--ink-black);
+    letter-spacing: -0.005em;
+    line-height: 1.2;
+  }
+
+  .bbg-areas-dark .bbg-areas-name { color: var(--warm-white); }
+
+  /* Arrow on the right (only when linked) */
+  .bbg-areas-arrow {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: var(--green-deep);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition:
+      opacity 220ms ease,
+      transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .bbg-areas-arrow svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .bbg-areas-link:hover .bbg-areas-arrow,
+  .bbg-areas-link:focus-visible .bbg-areas-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .bbg-areas-dark .bbg-areas-arrow { color: var(--sand-pale); }
+</style>

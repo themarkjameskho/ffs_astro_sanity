@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://{{fork_source_slug}}pestcontrol.com/sitemap-index.xml

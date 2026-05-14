@@ -1,0 +1,148 @@
+---
+import type { ContactSection } from '../../types/sections';
+import { normalizeInternalHref } from '../../lib/links';
+import { splitHighlight } from '../../utils/highlightTitle';
+
+const props = Astro.props as ContactSection;
+const titleSegments = props.title ? splitHighlight(props.title, props.highlightText) : [];
+const hasHeader = Boolean(props.title) || Boolean(props.subtitle && props.subtitle.trim().length > 0);
+const linksColumns = props.linksColumns ?? 3;
+const linksGridClass =
+  linksColumns === 1
+    ? 'grid-cols-1'
+    : linksColumns === 2
+      ? 'grid-cols-1 sm:grid-cols-2'
+      : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3';
+---
+
+<section class="section-full-width-lg" style={{ backgroundColor: 'var(--green-deep)', color: '#ffffff' }}>
+  <div class="section-container">
+    {/* Top Section: Title and Subtitle - Centered */}
+    {hasHeader && (
+      <div class="space-y-4 text-center mb-12">
+        {props.title && (
+          <h2 class="text-4xl font-bold text-white">
+            {titleSegments.map((segment) =>
+              segment.highlight ? (
+                <span class="bbg-contact-leaf">{segment.text}</span>
+              ) : (
+                segment.text
+              )
+            )}
+          </h2>
+        )}
+        {props.subtitle && props.subtitle.trim().length > 0 && (
+          <p class="subtitle-dark">{props.subtitle}</p>
+        )}
+      </div>
+    )}
+
+    {/* Bottom Section: 2-Column Layout */}
+    <div class="grid gap-6 md:gap-16 md:grid-cols-2">
+      {/* Left Column: Location Details */}
+      <div class="space-y-8 text-center md:text-left">
+        {props.locationTitle && (
+          <h3 class="text-2xl font-semibold text-white">{props.locationTitle}</h3>
+        )}
+        <ul class="space-y-4">
+          {/* Company Name */}
+          {props.companyName && (
+            <li class="flex gap-3 items-start">
+              <svg class="h-6 w-6 shrink-0" viewBox="0 0 20 20" fill="currentColor" style={{ color: 'var(--heat-orange)' }}>
+                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5.951-1.488 5.951 1.488a1 1 0 001.169-1.409l-7-14z" />
+              </svg>
+              <span class="text-base text-white font-medium">{props.companyName}</span>
+            </li>
+          )}
+          {/* Address */}
+          {props.address && (
+            <li class="flex gap-3 items-start">
+              <svg class="h-6 w-6 shrink-0" viewBox="0 0 20 20" fill="currentColor" style={{ color: 'var(--heat-orange)' }}>
+                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+              </svg>
+              <span class="text-base text-white">{props.address}</span>
+            </li>
+          )}
+          {/* Phone */}
+          {props.phone && (
+            <li class="flex gap-3 items-start">
+              <svg class="h-6 w-6 shrink-0" viewBox="0 0 20 20" fill="currentColor" style={{ color: 'var(--heat-orange)' }}>
+                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773c.418 1.265 1.215 2.541 2.341 3.667 1.126 1.126 2.402 1.923 3.667 2.341l.773-1.548a1 1 0 011.06-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+              </svg>
+              <a href={props.phoneLink || `tel:${props.phone}`} class="text-base text-white hover:text-white/75 transition-colors">
+                {props.phone}
+              </a>
+            </li>
+          )}
+          {/* Email */}
+          {props.email && (
+            <li class="flex gap-3 items-start">
+              <svg class="h-6 w-6 shrink-0" viewBox="0 0 20 20" fill="currentColor" style={{ color: 'var(--heat-orange)' }}>
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+              </svg>
+              <a href={`mailto:${props.email}`} class="text-base text-white hover:text-white/75 transition-colors">
+                {props.email}
+              </a>
+            </li>
+          )}
+        </ul>
+      </div>
+
+      {/* Right Column: Links Section */}
+      {props.linksSection && props.linksSection.length > 0 && (
+        <div class="space-y-8 text-center md:text-left">
+          {props.linksSubtitle && (
+            <h3 class="text-2xl font-semibold text-white">{props.linksSubtitle}</h3>
+          )}
+          <ul class={`grid ${linksGridClass} gap-3 md:gap-4`} role="list">
+            {props.linksSection.map((item) => (
+              <li class="flex items-start gap-2">
+                <svg class="h-5 w-5 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor" style={{ color: 'var(--heat-orange)' }}>
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                {item.url ? (
+                  <a
+                    href={normalizeInternalHref(item.url)}
+                    class="text-base text-white hover:text-white/75 transition-colors"
+                    target={item.url?.startsWith('http') ? '_blank' : undefined}
+                    rel={item.url?.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <span class="text-base text-white">{item.label}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+
+    {/* Map Embed (Bottom) */}
+    {props.mapEmbed && (
+      <div class="mt-8 md:mt-12 rounded-2xl overflow-hidden border border-(--color-border)">
+        <iframe 
+          src={props.mapEmbed} 
+          title="Location map" 
+          class="aspect-video w-full min-h-[280px] sm:min-h-[360px] md:min-h-96" 
+          loading="lazy"
+          allowfullscreen
+          referrerpolicy="no-referrer-when-downgrade"
+        ></iframe>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  /* Unified highlight — sand-pale italic on Contact's dark green bg.
+     Matches the hero treatment (red italic on light, sand-pale italic on dark). */
+  .bbg-contact-leaf {
+    display: inline-block;
+    color: var(--sand-pale);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+</style>

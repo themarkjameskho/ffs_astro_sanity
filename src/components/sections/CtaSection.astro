@@ -1,0 +1,546 @@
+---
+/**
+ * CtaSection — v5-modern visual rebuild as a "dispatch panel".
+ *
+ * The card pattern is the same regardless of colorTheme; only the
+ * card surface color (and corresponding text/CTA contrast) changes.
+ * No Sanity schema changes — every existing prop still drives behavior.
+ *
+ * Visual variants:
+ *   dark  (oliveGreen, darkGreen) — ink-black panel with green-deep + heat-orange radial flourishes (.bbg-panel-dark)
+ *   light (white)                 — warm-white card on warm-white surface
+ *   cream                         — sand-pale card with subtle inset
+ */
+import type { CtaSection } from '../../types/sections';
+import { portableTextToHtml } from '../../lib/portableText';
+import { splitHighlight } from '../../utils/highlightTitle';
+import { normalizeInternalHref } from '../../lib/links';
+
+const props = Astro.props as CtaSection;
+
+const primaryCtaLabel = props.primaryButton?.label?.trim() || props.ctaLabel?.trim() || '';
+const primaryCtaHref = normalizeInternalHref(props.primaryButton?.link ?? props.ctaLink);
+const secondaryCtaLabel = props.secondaryButton?.label?.trim() || '';
+const secondaryCtaHref = normalizeInternalHref(props.secondaryButton?.link);
+const headingSegments = splitHighlight(props.heading, props.highlightText);
+const eyebrowText = props.eyebrow?.trim();
+const subtitleText = props.ctaSubtitle?.trim();
+
+const rawColorTheme = props.colorTheme ?? 'oliveGreen';
+const colorTheme =
+  (
+    {
+      blue: 'oliveGreen',
+      darkBlue: 'darkGreen',
+      yellow: 'cream',
+    } as Record<string, string>
+  )[rawColorTheme] ?? rawColorTheme;
+const isDarkPanel = colorTheme === 'oliveGreen' || colorTheme === 'darkGreen';
+const isCreamPanel = colorTheme === 'cream';
+
+const isTwoColumn = props.layout === 'twoColumn';
+
+// Layout style — wired to Sanity's `layoutStyle` field.
+//   fullWidth → section paints theme bg edge-to-edge, panel is a bare
+//               flow container (no card, no inset padding) so the
+//               heading + body spread to the wrap width.
+//   boxed     → rounded "dispatch panel" inside the wrap (original v5).
+// Schema default is 'fullWidth', so undefined resolves to fullWidth.
+const isFullWidth =
+  ((props as any).layoutStyle as 'fullWidth' | 'boxed' | undefined) !== 'boxed';
+
+// In fullWidth mode the section paints the colorTheme color directly
+// so the band spans 100vw with no inner card. Olive is split out from
+// dark so the two options render visibly distinct.
+const isOlivePanel = colorTheme === 'oliveGreen';
+const fullWidthSectionClass = isOlivePanel
+  ? 'bbg-cta-fw-olive'
+  : colorTheme === 'darkGreen'
+    ? 'bbg-cta-fw-dark'
+    : isCreamPanel
+      ? 'bbg-cta-fw-cream'
+      : colorTheme === 'soft-green'
+        ? 'bbg-cta-fw-softgreen'
+        : colorTheme === 'sage'
+          ? 'bbg-cta-fw-sage'
+          : 'bbg-cta-fw-light';
+
+// Sanity-controlled background around the panel — defaults to 'inherit'
+// so the section blends into adjacent surfaces (e.g., directly below
+// the hero with no visible step in bg color). Only consulted in boxed
+// mode; fullWidth uses fullWidthSectionClass instead.
+const sectionBackground =
+  ((props as any).sectionBackground as
+    | 'inherit'
+    | 'white'
+    | 'soft-green'
+    | 'sage'
+    | 'warm'
+    | 'dark'
+    | undefined) ?? 'inherit';
+
+// Section padding height — defaults to compact so the panel hugs
+// surrounding sections instead of opening a tall vertical gap.
+const sectionHeight =
+  ((props as any).sectionHeight as 'compact' | 'default' | 'spacious' | undefined) ?? 'compact';
+
+const bodyHtml = props.body && props.body.length > 0
+  ? portableTextToHtml(props.body, isDarkPanel)
+  : '';
+
+const hasPrimaryCta = Boolean(primaryCtaLabel && primaryCtaHref);
+const hasSecondaryCta = Boolean(secondaryCtaLabel && secondaryCtaHref);
+const hasAnyCta = hasPrimaryCta || hasSecondaryCta;
+---
+
+<section class={`bbg-cta ${isFullWidth ? fullWidthSectionClass : `bbg-cta-bg-${sectionBackground}`} bbg-cta-h-${sectionHeight} ${isDarkPanel ? 'bbg-cta-on-dark' : 'bbg-cta-on-light'} ${isFullWidth ? 'is-fullwidth' : 'is-boxed'}`}>
+  <div class="bbg-wrap">
+    <div class={`bbg-cta-panel ${isFullWidth ? 'bbg-cta-panel-bare' : (isDarkPanel ? 'bbg-panel-dark' : isCreamPanel ? 'bbg-cta-panel-cream' : 'bbg-cta-panel-light')} ${isTwoColumn ? 'is-twocol' : 'is-stacked'}`}>
+      <div class="bbg-cta-content">
+        {eyebrowText && (
+          <span class="bbg-cta-eyebrow">
+            <span class="bbg-cta-eyebrow-dot" aria-hidden="true"></span>
+            {eyebrowText}
+          </span>
+        )}
+
+        {headingSegments.length > 0 && (
+          <h2 class="bbg-cta-title">
+            {headingSegments.map((segment) =>
+              segment.highlight ? (
+                <span class="bbg-cta-leaf">{segment.text}</span>
+              ) : (
+                <span>{segment.text}</span>
+              ),
+            )}
+          </h2>
+        )}
+
+        {bodyHtml && (
+          <div class="bbg-cta-body" set:html={bodyHtml} />
+        )}
+      </div>
+
+      {(hasAnyCta || subtitleText) && (
+        <div class="bbg-cta-actions">
+          {subtitleText && (
+            <p class="bbg-cta-subtitle">{subtitleText}</p>
+          )}
+
+          {hasAnyCta && (
+            <div class="bbg-cta-buttons">
+              {hasPrimaryCta && (
+                <a href={primaryCtaHref} class="btn-primary bbg-cta-primary">
+                  {primaryCtaLabel}
+                  <svg viewBox="0 0 24 24" class="bbg-cta-arrow" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </a>
+              )}
+              {hasSecondaryCta && (
+                <a href={secondaryCtaHref} class="btn-ghost bbg-cta-secondary">
+                  {secondaryCtaLabel}
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Section padding presets — picked via Sanity sectionHeight field. */
+  .bbg-cta-h-compact { padding: 32px 0; }
+  .bbg-cta-h-default { padding: 64px 0; }
+  .bbg-cta-h-spacious { padding: 96px 0; }
+
+  @media (max-width: 720px) {
+    .bbg-cta-h-compact { padding: 24px 0; }
+    .bbg-cta-h-default { padding: 40px 0; }
+    .bbg-cta-h-spacious { padding: 56px 0; }
+  }
+
+  /* Section bg variants — picked via Sanity sectionBackground field.
+     'inherit' lets the section be transparent so it visually merges
+     with whatever bg the page is using above and below. */
+  .bbg-cta-bg-inherit { background: transparent; }
+  .bbg-cta-bg-white { background: var(--surface-white); }
+  .bbg-cta-bg-soft-green { background: var(--surface-soft-green); }
+  .bbg-cta-bg-sage { background: var(--surface-sage); }
+  .bbg-cta-bg-warm { background: var(--warm-white); }
+  .bbg-cta-bg-dark { background: var(--green-deep); color: var(--warm-white); }
+
+  /* Legacy on-light / on-dark wrappers no longer paint bg —
+     sectionBackground variants own that responsibility now. */
+  .bbg-cta-on-light,
+  .bbg-cta-on-dark { background: transparent; }
+
+  /* === Panel variants =============================================== */
+  .bbg-cta-panel {
+    border-radius: 32px;
+    padding: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  /* Single-column layout: center the heading + CTAs (design rule). */
+  .bbg-cta-panel.is-stacked {
+    align-items: center;
+    text-align: center;
+  }
+
+  .bbg-cta-panel.is-stacked .bbg-cta-content {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  .bbg-cta-panel.is-stacked .bbg-cta-body {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .bbg-cta-panel.is-stacked .bbg-cta-actions {
+    align-items: center;
+  }
+
+  .bbg-cta-panel.is-stacked .bbg-cta-buttons {
+    justify-content: center;
+  }
+
+  /* Two-column layout: heading left, CTAs right (desktop).
+     On mobile (<880px) it stacks AND centers everything so a CTA
+     band on a phone reads as a unified centered composition. */
+  .bbg-cta-panel.is-twocol {
+    flex-direction: column;
+  }
+
+  @media (max-width: 879px) {
+    .bbg-cta-panel.is-twocol {
+      align-items: center;
+      text-align: center;
+    }
+    .bbg-cta-panel.is-twocol .bbg-cta-content {
+      width: 100%;
+      max-width: 720px;
+    }
+    .bbg-cta-panel.is-twocol .bbg-cta-body {
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .bbg-cta-panel.is-twocol .bbg-cta-actions {
+      align-items: center;
+      width: 100%;
+    }
+    .bbg-cta-panel.is-twocol .bbg-cta-buttons {
+      justify-content: center;
+    }
+    .bbg-cta-panel.is-twocol .bbg-cta-eyebrow {
+      justify-content: center;
+    }
+  }
+
+  @media (min-width: 880px) {
+    .bbg-cta-panel.is-twocol {
+      flex-direction: row;
+      align-items: center;
+      gap: 48px;
+    }
+
+    .bbg-cta-panel.is-twocol .bbg-cta-content {
+      flex: 1.2;
+    }
+
+    .bbg-cta-panel.is-twocol .bbg-cta-actions {
+      flex: 1;
+      align-items: flex-end;
+      text-align: right;
+    }
+  }
+
+  .bbg-cta-panel-light {
+    background: var(--warm-white);
+    border: 1px solid rgba(29, 29, 29, 0.06);
+    box-shadow:
+      0 1px 0 rgba(29, 29, 29, 0.02),
+      0 30px 60px -28px rgba(29, 29, 29, 0.18);
+  }
+
+  .bbg-cta-panel-cream {
+    background: var(--sand-pale);
+    border: 1px solid rgba(29, 29, 29, 0.05);
+  }
+
+  /* .bbg-panel-dark already styled in global.css */
+
+  /* === Full-width layout ============================================
+     layoutStyle=fullWidth strips the rounded card so the section paints
+     the theme color edge-to-edge and the content spreads to wrap width
+     instead of cramping at 720px. Each Sanity color maps to a distinct
+     surface so users see what they pick. */
+  .bbg-cta-fw-dark {
+    background: var(--green-deep);
+    color: var(--warm-white);
+  }
+  .bbg-cta-fw-olive {
+    background: var(--green-olive);
+    color: var(--warm-white);
+  }
+  .bbg-cta-fw-cream     { background: var(--sand-pale); }
+  .bbg-cta-fw-softgreen { background: var(--surface-soft-green); }
+  .bbg-cta-fw-sage      { background: var(--surface-sage); }
+  .bbg-cta-fw-light     { background: var(--warm-white); }
+
+  /* Bare panel: drop the card surface, border, shadow, padding, radius. */
+  .bbg-cta-panel-bare {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  /* Wider content in fullwidth single-column so the byline doesn't cramp. */
+  .is-fullwidth .bbg-cta-panel.is-stacked .bbg-cta-content {
+    max-width: 960px;
+  }
+
+  .is-fullwidth .bbg-cta-panel.is-stacked .bbg-cta-body {
+    max-width: 760px;
+  }
+
+  /* Without the panel's 56px inset padding, the section needs its own
+     vertical breathing room — bump the height presets in fullwidth. */
+  .is-fullwidth.bbg-cta-h-compact { padding: 64px 0; }
+  .is-fullwidth.bbg-cta-h-default { padding: 96px 0; }
+  .is-fullwidth.bbg-cta-h-spacious { padding: 128px 0; }
+
+  @media (max-width: 720px) {
+    .is-fullwidth.bbg-cta-h-compact { padding: 48px 0; }
+    .is-fullwidth.bbg-cta-h-default { padding: 64px 0; }
+    .is-fullwidth.bbg-cta-h-spacious { padding: 88px 0; }
+  }
+
+  /* Dark-theme text + CTA contrast when there's no .bbg-panel-dark
+     wrapper to scope under — cascade off .bbg-cta-on-dark.is-fullwidth. */
+  .bbg-cta-on-dark.is-fullwidth .bbg-cta-title {
+    color: var(--warm-white);
+  }
+  .bbg-cta-on-dark.is-fullwidth .bbg-cta-leaf {
+    color: var(--sand-pale);
+    font-weight: 600;
+  }
+  .bbg-cta-on-dark.is-fullwidth .bbg-cta-eyebrow {
+    color: var(--sand-pale);
+  }
+  .bbg-cta-on-dark.is-fullwidth .bbg-cta-eyebrow-dot {
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.32);
+  }
+  .bbg-cta-on-dark.is-fullwidth .bbg-cta-body {
+    color: rgba(247, 245, 241, 0.92);
+  }
+  .bbg-cta-on-dark.is-fullwidth .bbg-cta-subtitle {
+    color: rgba(247, 245, 241, 0.78);
+  }
+  .bbg-cta-on-dark.is-fullwidth .bbg-cta-secondary {
+    color: var(--warm-white);
+    border-color: rgba(247, 245, 241, 0.32);
+  }
+  .bbg-cta-on-dark.is-fullwidth .bbg-cta-secondary:hover,
+  .bbg-cta-on-dark.is-fullwidth .bbg-cta-secondary:focus-visible {
+    background: var(--warm-white);
+    color: var(--ink-black);
+    border-color: var(--warm-white);
+  }
+
+  @media (max-width: 720px) {
+    .bbg-cta-panel {
+      padding: 36px 28px;
+      border-radius: 24px;
+    }
+    /* Bare panel stays bare on mobile too. */
+    .bbg-cta-panel-bare { padding: 0; border-radius: 0; }
+  }
+
+  /* === Eyebrow ====================================================== */
+  .bbg-cta-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--emergency);
+    margin-bottom: 16px;
+  }
+
+  .bbg-panel-dark .bbg-cta-eyebrow {
+    color: var(--sand-pale);
+  }
+
+  /* Red accent dot per brand direction. */
+  .bbg-cta-eyebrow-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--emergency);
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.18);
+  }
+
+  .bbg-panel-dark .bbg-cta-eyebrow-dot {
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.32);
+  }
+
+  /* === Title ======================================================== */
+  .bbg-cta-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-black);
+    text-wrap: balance;
+    margin-bottom: 0;
+  }
+
+  .bbg-panel-dark .bbg-cta-title {
+    color: var(--warm-white);
+  }
+
+  /* Highlight word: solid brand red, italic. */
+  .bbg-cta-leaf {
+    display: inline-block;
+    font-style: italic;
+    padding-right: 0.05em;
+    color: var(--emergency);
+  }
+
+  /* On dark green-darker panel: sand-pale italic for the highlight word. */
+  .bbg-panel-dark .bbg-cta-leaf {
+    color: var(--sand-pale);
+    font-weight: 600;
+  }
+
+  /* === Body ========================================================= */
+  .bbg-cta-body {
+    margin-top: 20px;
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    max-width: 560px;
+  }
+
+  .bbg-panel-dark .bbg-cta-body {
+    color: rgba(247, 245, 241, 0.92);
+  }
+
+  .bbg-cta-body :global(p) {
+    margin: 0 0 0.75em;
+  }
+
+  .bbg-cta-body :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .bbg-cta-body :global(strong),
+  .bbg-cta-body :global(b) {
+    color: inherit;
+    font-weight: 600;
+  }
+
+  /* === Actions ====================================================== */
+  .bbg-cta-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .bbg-cta-subtitle {
+    font-family: var(--font-heading);
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+  }
+
+  .bbg-panel-dark .bbg-cta-subtitle {
+    color: rgba(247, 245, 241, 0.78);
+  }
+
+  .bbg-cta-buttons {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  /* Bigger primary CTA — this is the dominant action on the section so
+     it deserves real visual weight. Larger padding, larger font, larger
+     arrow, heavier shadow than the global .btn-primary. */
+  .bbg-cta-primary {
+    min-height: 78px;
+    padding: 1.5rem 3rem;
+    font-size: 1.18rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    gap: 0.9rem;
+    box-shadow: 0 14px 32px rgba(47, 191, 113, 0.42);
+  }
+
+  @media (max-width: 720px) {
+    .bbg-cta-primary {
+      min-height: 62px;
+      padding: 1.1rem 2rem;
+      font-size: 1rem;
+      gap: 0.7rem;
+    }
+  }
+
+  .bbg-cta-primary .bbg-cta-arrow {
+    width: 20px;
+    height: 20px;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-cta-primary .bbg-cta-arrow {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .bbg-cta-secondary {
+    min-height: 56px;
+    padding: 1rem 1.75rem;
+    font-size: 0.92rem;
+  }
+
+  /* Ghost button on dark panel: light border, inverts on hover */
+  .bbg-panel-dark .bbg-cta-secondary {
+    color: var(--warm-white);
+    border-color: rgba(247, 245, 241, 0.32);
+  }
+
+  .bbg-panel-dark .bbg-cta-secondary:hover,
+  .bbg-panel-dark .bbg-cta-secondary:focus-visible {
+    background: var(--warm-white);
+    color: var(--ink-black);
+    border-color: var(--warm-white);
+  }
+  /* .bbg-cta-primary inherits the global heat-orange .btn-primary
+     style — the orange against green-darker pops as intended. */
+
+  .bbg-cta-arrow {
+    width: 14px;
+    height: 14px;
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .bbg-cta-primary:hover .bbg-cta-arrow,
+  .bbg-cta-primary:focus-visible .bbg-cta-arrow {
+    transform: translateX(3px);
+  }
+</style>

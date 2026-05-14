@@ -1,0 +1,563 @@
+---
+/**
+ * ServiceGridSection — v5-modern bento grid rebuild.
+ *
+ * Same Sanity props (items, layoutStyle, alignment, secondary CTA, etc.).
+ * Visuals restructured into clean bento cards with icon framing,
+ * hover lift, and the v5 design system primitives (.bbg-section, .bbg-sec-head).
+ */
+import type { ServiceGridSection } from '../../types/sections';
+import { splitHighlight } from '../../utils/highlightTitle';
+import { buildSanityImageUrl, getIconUrl, type SanityImageSource } from '../../lib/imageOptimizer';
+import { portableTextToHtml } from '../../lib/portableText';
+import { normalizeInternalHref } from '../../lib/links';
+
+const props = Astro.props as ServiceGridSection;
+const resolveLink = (link?: string) => normalizeInternalHref(link);
+
+const items = props.items ?? [];
+const gridItems = items.slice(0, 12);
+const layout = props.layoutStyle ?? 'stacked';
+const titleSegments = splitHighlight(props.title, props.highlightText);
+const secondaryCtaHref = resolveLink(props.secondaryCtaLink);
+const subtitleText = props.subtitle?.trim();
+const iconDisplaySize = 56;
+
+/**
+ * Resolve a service-grid item icon URL while honoring Sanity crop +
+ * hotspot metadata. Falls back to legacy iconUrl strings or to
+ * getIconUrl when no asset object exists.
+ */
+const resolveIconSrc = (item: any, fallbackUrl: string | undefined): string => {
+  const source = item?.icon as SanityImageSource | undefined;
+  // 2× the display size so retina/HDPI screens render crisp. 1.5× looked
+  // slightly soft on Macs and high-density Android devices.
+  const targetWidth = iconDisplaySize * 2;
+  if (source?.asset) {
+    const built = buildSanityImageUrl(source, {
+      width: targetWidth,
+      height: targetWidth,
+      quality: 75,
+      format: 'webp',
+      fit: 'crop',
+    });
+    if (built) return built;
+  }
+  return getIconUrl(fallbackUrl, targetWidth);
+};
+
+const descriptionHtml =
+  Array.isArray(props.description) && props.description.length
+    ? portableTextToHtml(props.description)
+    : '';
+const descriptionText =
+  !Array.isArray(props.description) && typeof props.description === 'string'
+    ? props.description
+    : '';
+const hasDescription = Boolean(descriptionHtml || descriptionText);
+---
+
+<section class="bbg-section bbg-svc">
+  <div class="bbg-wrap">
+    {layout === 'tLayout' ? (
+      <div class="bbg-svc-tlayout">
+        {/* Top section header */}
+        <div class="bbg-sec-head">
+          {titleSegments.length > 0 && (
+            <h2 class="bbg-title">
+              {titleSegments.map((segment) =>
+                segment.highlight ? (
+                  <span class="bbg-svc-leaf">{segment.text}</span>
+                ) : (
+                  <span>{segment.text}</span>
+                ),
+              )}
+            </h2>
+          )}
+          {(subtitleText || hasDescription) && (
+            <div class="bbg-aside">
+              {subtitleText && <p class="bbg-svc-subtitle">{subtitleText}</p>}
+              {descriptionHtml && (
+                <div class="bbg-svc-desc" set:html={descriptionHtml} />
+              )}
+              {!descriptionHtml && descriptionText && (
+                <p class="bbg-svc-desc">{descriptionText}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* T-shape: secondary block on left, items on right */}
+        <div class="bbg-svc-t-grid">
+          {(props.secondaryTitle || props.secondaryDescription) && (
+            <div class="bbg-svc-t-side">
+              {props.secondaryTitle && (
+                <h3 class="bbg-svc-t-secondary-title">{props.secondaryTitle}</h3>
+              )}
+              {props.secondaryDescription && (
+                <p class="bbg-svc-t-secondary-desc">{props.secondaryDescription}</p>
+              )}
+              {props.secondaryCtaLabel && secondaryCtaHref && (
+                <a href={secondaryCtaHref} class="btn-primary bbg-svc-t-cta">
+                  {props.secondaryCtaLabel}
+                  <svg viewBox="0 0 24 24" class="bbg-svc-arrow" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </a>
+              )}
+            </div>
+          )}
+
+          {gridItems.length > 0 && (
+            <ul class="bbg-svc-bento bbg-svc-bento-3" aria-label="Service grid">
+              {gridItems.map((item, index) => {
+                const href = resolveLink(item.linkUrl);
+                const itemLabel = item.label ?? item.name ?? item.title ?? '';
+                const iconUrl = item.iconUrl ?? item.icon?.asset?.url ?? item.icon?.url;
+                const isPrimaryIcon = index === 0;
+                const iconAlt = itemLabel ? `${itemLabel} icon` : 'Service icon';
+                const itemDescriptionHtml =
+                  Array.isArray(item.description) && item.description.length
+                    ? portableTextToHtml(item.description)
+                    : '';
+                const itemDescriptionText =
+                  !Array.isArray(item.description) && typeof item.description === 'string'
+                    ? item.description
+                    : '';
+
+                return (
+                  <li class="bbg-svc-cell">
+                    <article class={`bbg-svc-card bbg-card ${href ? 'bbg-card-hover' : ''}`}>
+                      {href && (
+                        <a href={href} aria-label={itemLabel} class="bbg-svc-card-link">
+                          <span class="sr-only">{itemLabel}</span>
+                        </a>
+                      )}
+                      {iconUrl && (
+                        <div class="bbg-svc-icon">
+                          <img
+                            src={resolveIconSrc(item, iconUrl)}
+                            alt={iconAlt}
+                            width={iconDisplaySize}
+                            height={iconDisplaySize}
+                            loading={isPrimaryIcon ? 'eager' : 'lazy'}
+                            fetchpriority={isPrimaryIcon ? 'high' : 'auto'}
+                            decoding="async"
+                          />
+                        </div>
+                      )}
+                      <h3 class="bbg-svc-card-title">{itemLabel}</h3>
+                      {itemDescriptionHtml && (
+                        <div class="bbg-svc-card-desc" set:html={itemDescriptionHtml} />
+                      )}
+                      {!itemDescriptionHtml && itemDescriptionText && (
+                        <p class="bbg-svc-card-desc">{itemDescriptionText}</p>
+                      )}
+                      {item.linkLabel && href && (
+                        <span class="bbg-svc-card-link-label">
+                          {item.linkLabel}
+                          <svg viewBox="0 0 24 24" class="bbg-svc-arrow" aria-hidden="true">
+                            <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                          </svg>
+                        </span>
+                      )}
+                    </article>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+    ) : (
+      <>
+        {/* Section header */}
+        <div class="bbg-sec-head">
+          {titleSegments.length > 0 && (
+            <h2 class="bbg-title">
+              {titleSegments.map((segment) =>
+                segment.highlight ? (
+                  <span class="bbg-svc-leaf">{segment.text}</span>
+                ) : (
+                  <span>{segment.text}</span>
+                ),
+              )}
+            </h2>
+          )}
+          {(subtitleText || hasDescription) && (
+            <div class="bbg-aside">
+              {subtitleText && <p class="bbg-svc-subtitle">{subtitleText}</p>}
+              {descriptionHtml && (
+                <div class="bbg-svc-desc" set:html={descriptionHtml} />
+              )}
+              {!descriptionHtml && descriptionText && (
+                <p class="bbg-svc-desc">{descriptionText}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Bento grid */}
+        {gridItems.length > 0 && (
+          <ul class={`bbg-svc-bento ${layout === 'twoColumn' ? 'bbg-svc-bento-2' : 'bbg-svc-bento-auto'}`} aria-label="Service grid">
+            {gridItems.map((item, index) => {
+              const href = resolveLink(item.linkUrl);
+              const itemLabel = item.label ?? item.name ?? item.title ?? '';
+              const iconUrl = item.iconUrl ?? item.icon?.asset?.url ?? item.icon?.url;
+              const isPrimaryIcon = index === 0;
+              const iconAlt = itemLabel ? `${itemLabel} icon` : 'Service icon';
+              const itemDescriptionHtml =
+                Array.isArray(item.description) && item.description.length
+                  ? portableTextToHtml(item.description)
+                  : '';
+              const itemDescriptionText =
+                !Array.isArray(item.description) && typeof item.description === 'string'
+                  ? item.description
+                  : '';
+
+              return (
+                <li class="bbg-svc-cell">
+                  <article class={`bbg-svc-card bbg-card ${href ? 'bbg-card-hover' : ''}`}>
+                    {href && (
+                      <a href={href} aria-label={itemLabel} class="bbg-svc-card-link">
+                        <span class="sr-only">{itemLabel}</span>
+                      </a>
+                    )}
+                    {iconUrl && (
+                      <div class="bbg-svc-icon">
+                        <img
+                          src={resolveIconSrc(item, iconUrl)}
+                          alt={iconAlt}
+                          width={iconDisplaySize}
+                          height={iconDisplaySize}
+                          loading={isPrimaryIcon ? 'eager' : 'lazy'}
+                          fetchpriority={isPrimaryIcon ? 'high' : 'auto'}
+                          decoding="async"
+                        />
+                      </div>
+                    )}
+                    <h3 class="bbg-svc-card-title">{itemLabel}</h3>
+                    {itemDescriptionHtml && (
+                      <div class="bbg-svc-card-desc" set:html={itemDescriptionHtml} />
+                    )}
+                    {!itemDescriptionHtml && itemDescriptionText && (
+                      <p class="bbg-svc-card-desc">{itemDescriptionText}</p>
+                    )}
+                    {item.linkLabel && href && (
+                      <span class="bbg-svc-card-link-label">
+                        {item.linkLabel}
+                        <svg viewBox="0 0 24 24" class="bbg-svc-arrow" aria-hidden="true">
+                          <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                      </span>
+                    )}
+                  </article>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {/* Bottom CTA (stacked layout) */}
+        {props.secondaryCtaLabel && secondaryCtaHref && layout !== 'twoColumn' && (
+          <div class="bbg-svc-bottom-cta">
+            <a href={secondaryCtaHref} class="btn-primary">
+              {props.secondaryCtaLabel}
+              <svg viewBox="0 0 24 24" class="bbg-svc-arrow" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </a>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+</section>
+
+<style>
+  /* === Section title (uses bbg-sec-head from global.css) ============ */
+  .bbg-svc .bbg-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-black);
+    text-wrap: balance;
+    flex: 1;
+    min-width: 280px;
+    margin-bottom: 0;
+  }
+
+  /* Highlight word: solid brand red, italic. */
+  .bbg-svc-leaf {
+    display: inline-block;
+    font-style: italic;
+    padding-right: 0.05em;
+    color: var(--emergency);
+  }
+
+  .bbg-svc .bbg-aside {
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--ink-soft);
+    margin-left: auto;
+    max-width: 360px;
+    line-height: 1.55;
+  }
+
+  .bbg-svc-subtitle {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--green-deep);
+    margin: 0 0 6px;
+    letter-spacing: -0.005em;
+  }
+
+  .bbg-svc-desc {
+    margin: 0;
+  }
+
+  .bbg-svc-desc :global(p) {
+    margin: 0 0 0.5em;
+  }
+
+  .bbg-svc-desc :global(p:last-child) {
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-svc .bbg-aside {
+      margin-left: 0;
+      max-width: none;
+    }
+  }
+
+  /* === Bento grid =================================================== */
+  .bbg-svc-bento {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 20px;
+  }
+
+  .bbg-svc-bento-auto {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+
+  @media (min-width: 720px) {
+    .bbg-svc-bento-auto {
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+  }
+
+  .bbg-svc-bento-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 720px) {
+    .bbg-svc-bento-2 {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .bbg-svc-bento-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 980px) {
+    .bbg-svc-bento-3 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 560px) {
+    .bbg-svc-bento-3 {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .bbg-svc-cell {
+    list-style: none;
+  }
+
+  /* === Card ========================================================= */
+  .bbg-svc-card {
+    position: relative;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100%;
+    /* Inherits from .bbg-card in global.css: bg, border, radius, shadow, hover */
+  }
+
+  .bbg-svc-card-link {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    z-index: 1;
+  }
+
+  .bbg-svc-icon {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(
+      135deg,
+      var(--sand-pale) 0%,
+      var(--warm-white) 60%
+    );
+    box-shadow: inset 0 0 0 1px rgba(94, 127, 58, 0.12);
+    transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 280ms ease;
+  }
+
+  .bbg-svc-icon::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, var(--green-bio) 0%, transparent 70%);
+    opacity: 0.18;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .bbg-svc-icon img {
+    position: relative;
+    z-index: 1;
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 12px rgba(75, 101, 46, 0.18));
+    transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .bbg-svc-card.bbg-card-hover:hover .bbg-svc-icon,
+  .bbg-svc-card.bbg-card-hover:focus-within .bbg-svc-icon {
+    box-shadow: inset 0 0 0 1px rgba(94, 127, 58, 0.32);
+  }
+
+  .bbg-svc-card.bbg-card-hover:hover .bbg-svc-icon img,
+  .bbg-svc-card.bbg-card-hover:focus-within .bbg-svc-icon img {
+    transform: scale(1.06);
+  }
+
+  .bbg-svc-card-title {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.3;
+    color: var(--ink-black);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .bbg-svc-card-desc {
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 0;
+    flex: 1;
+  }
+
+  .bbg-svc-card-desc :global(p) {
+    margin: 0 0 0.5em;
+  }
+
+  .bbg-svc-card-desc :global(p:last-child) {
+    margin: 0;
+  }
+
+  .bbg-svc-card-link-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--green-deep);
+    margin-top: auto;
+    transition: gap 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .bbg-svc-card.bbg-card-hover:hover .bbg-svc-card-link-label,
+  .bbg-svc-card.bbg-card-hover:focus-within .bbg-svc-card-link-label {
+    gap: 12px;
+  }
+
+  .bbg-svc-arrow {
+    width: 14px;
+    height: 14px;
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    flex-shrink: 0;
+  }
+
+  /* === T-layout ===================================================== */
+  .bbg-svc-t-grid {
+    display: grid;
+    gap: 40px;
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  @media (min-width: 880px) {
+    .bbg-svc-t-grid {
+      grid-template-columns: 0.9fr 1.4fr;
+      gap: 56px;
+    }
+  }
+
+  .bbg-svc-t-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .bbg-svc-t-secondary-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 26px;
+    line-height: 1.15;
+    color: var(--ink-black);
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .bbg-svc-t-secondary-desc {
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .bbg-svc-t-cta {
+    margin-top: 8px;
+  }
+
+  /* === Bottom CTA =================================================== */
+  .bbg-svc-bottom-cta {
+    margin-top: 48px;
+    display: flex;
+    justify-content: center;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-svc-bottom-cta {
+      margin-top: 32px;
+    }
+  }
+</style>

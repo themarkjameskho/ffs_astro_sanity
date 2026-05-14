@@ -1,0 +1,419 @@
+---
+/**
+ * FaqSection — v5-modern accordion rebuild.
+ *
+ * Same Sanity props (heading/title, description, faqs[], buttonLabel/Link,
+ * bottomText, layoutVariant single/twoColumn, textAlignment, colorTheme).
+ * Visuals: clean card-style accordion items with smooth chevron rotation
+ * and a subtle background tint when open.
+ */
+import type { FaqSection as FaqSectionProps } from '../../types/sections';
+import { normalizeInternalHref } from '../../lib/links';
+
+const props = Astro.props as FaqSectionProps;
+
+const layoutVariant = props.layoutVariant === 'twoColumn' ? 'twoColumn' : 'single';
+// Design rule: single-column sections center their heading by default.
+// Sanity textAlignment can still override (set to 'left' explicitly to opt out).
+const textAlignment =
+  props.textAlignment === 'left'
+    ? 'left'
+    : props.textAlignment === 'center'
+      ? 'center'
+      : layoutVariant === 'single'
+        ? 'center'
+        : 'left';
+const rawColorTheme = props.colorTheme ?? 'white';
+const colorTheme =
+  (
+    {
+      blue: 'oliveGreen',
+      darkBlue: 'darkGreen',
+      yellow: 'cream',
+    } as Record<string, string>
+  )[rawColorTheme] ?? rawColorTheme;
+const isDarkSection = colorTheme === 'oliveGreen' || colorTheme === 'darkGreen';
+const isOliveSection = colorTheme === 'oliveGreen';
+const isCreamSection = colorTheme === 'cream';
+
+// Map every color option to its concrete section bg utility class so
+// olive renders distinct from darkGreen, sage distinct from soft-green.
+const sectionBgClass = (
+  {
+    'soft-green': 'bbg-section-soft-green',
+    sage: 'bbg-section-sage',
+    oliveGreen: 'bbg-section-olive',
+  } as Record<string, string>
+)[colorTheme] ?? '';
+
+const heading = (props.heading ?? props.title ?? '').trim();
+import { splitHighlight } from '../../utils/highlightTitle';
+const headingSegments = heading ? splitHighlight(heading, (props as any).highlightText) : [];
+const description = (props.description ?? '').trim();
+const bottomText = (props.bottomText ?? '').trim();
+const buttonLabel = (props.buttonLabel ?? '').trim();
+const buttonLink = normalizeInternalHref(props.buttonLink);
+const ctaHref = buttonLabel && buttonLink ? buttonLink : undefined;
+
+const faqs = (props.faqs ?? [])
+  .map((faq) => ({
+    _key: faq._key,
+    question: (faq.question ?? '').trim(),
+    answer: (faq.answer ?? '').trim(),
+  }))
+  .filter((faq) => faq.question || faq.answer);
+
+const leftColumnFaqs = faqs.filter((_, index) => index % 2 === 0);
+const rightColumnFaqs = faqs.filter((_, index) => index % 2 === 1);
+---
+
+<section class={`bbg-section bbg-faq ${isDarkSection ? 'bbg-faq-dark' : isCreamSection ? 'bbg-faq-cream' : 'bbg-faq-light'} ${sectionBgClass}`}>
+  <div class="bbg-wrap">
+    {(heading || description) && (
+      <div class={`bbg-faq-head ${textAlignment === 'center' ? 'is-center' : 'is-left'}`}>
+        {heading && (
+          <h2 class="bbg-faq-title">
+            {headingSegments.map((segment) =>
+              segment.highlight ? (
+                <span class={isDarkSection ? 'bbg-faq-leaf-dark' : 'bbg-faq-leaf'}>{segment.text}</span>
+              ) : (
+                <span>{segment.text}</span>
+              )
+            )}
+          </h2>
+        )}
+        {description && <p class="bbg-faq-desc">{description}</p>}
+      </div>
+    )}
+
+    {faqs.length > 0 && (
+      layoutVariant === 'twoColumn' ? (
+        <div class="bbg-faq-grid">
+          <div class="bbg-faq-col">
+            {leftColumnFaqs.map((faq) => (
+              <details class="bbg-faq-item">
+                <summary class="bbg-faq-summary">
+                  <span class="bbg-faq-q">{faq.question || 'FAQ'}</span>
+                  <span class="bbg-faq-chev" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </span>
+                </summary>
+                {faq.answer && (
+                  <div class="bbg-faq-a">{faq.answer}</div>
+                )}
+              </details>
+            ))}
+          </div>
+
+          <div class="bbg-faq-col">
+            {rightColumnFaqs.map((faq) => (
+              <details class="bbg-faq-item">
+                <summary class="bbg-faq-summary">
+                  <span class="bbg-faq-q">{faq.question || 'FAQ'}</span>
+                  <span class="bbg-faq-chev" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </span>
+                </summary>
+                {faq.answer && (
+                  <div class="bbg-faq-a">{faq.answer}</div>
+                )}
+              </details>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div class="bbg-faq-stack">
+          {faqs.map((faq) => (
+            <details class="bbg-faq-item">
+              <summary class="bbg-faq-summary">
+                <span class="bbg-faq-q">{faq.question || 'FAQ'}</span>
+                <span class="bbg-faq-chev" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </span>
+              </summary>
+              {faq.answer && (
+                <div class="bbg-faq-a">{faq.answer}</div>
+              )}
+            </details>
+          ))}
+        </div>
+      )
+    )}
+
+    {(bottomText || ctaHref) && (
+      <div class={`bbg-faq-foot ${textAlignment === 'center' ? 'is-center' : 'is-left'}`}>
+        {bottomText && <p class="bbg-faq-foot-text">{bottomText}</p>}
+        {ctaHref && (
+          <a href={ctaHref} class="btn-primary">
+            {buttonLabel}
+            <svg viewBox="0 0 24 24" class="bbg-faq-arrow" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </a>
+        )}
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .bbg-faq-light { background: var(--warm-white); }
+  .bbg-faq-cream { background: var(--sand-pale); }
+  .bbg-faq-dark  { background: var(--green-deep); color: var(--warm-white); }
+
+  /* === Head ======================================================== */
+  .bbg-faq-head {
+    max-width: 780px;
+    margin: 0 auto 48px;
+  }
+
+  .bbg-faq-head.is-left { margin-left: 0; }
+  .bbg-faq-head.is-center { text-align: center; }
+
+  @media (max-width: 720px) {
+    .bbg-faq-head { margin-bottom: 32px; }
+  }
+
+  .bbg-faq-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-black);
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .bbg-faq-dark .bbg-faq-title { color: var(--warm-white); }
+
+  /* Unified highlight — red italic on light, sand-pale italic on dark. */
+  .bbg-faq-leaf {
+    display: inline-block;
+    color: var(--emergency);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+  .bbg-faq-leaf-dark {
+    display: inline-block;
+    color: var(--sand-pale);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+
+  .bbg-faq-desc {
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin-top: 16px;
+  }
+
+  .bbg-faq-dark .bbg-faq-desc { color: rgba(247, 245, 241, 0.92); }
+
+  /* === Layouts ==================================================== */
+  .bbg-faq-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+
+  .bbg-faq-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 880px) {
+    .bbg-faq-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 24px;
+    }
+  }
+
+  .bbg-faq-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* === Item ======================================================== */
+  .bbg-faq-item {
+    background: var(--warm-white);
+    border: 1px solid rgba(29, 29, 29, 0.08);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
+  }
+
+  .bbg-faq-item:hover {
+    border-color: rgba(94, 127, 58, 0.32);
+    box-shadow: 0 8px 20px -12px rgba(29, 29, 29, 0.12);
+  }
+
+  .bbg-faq-item[open] {
+    border-color: rgba(94, 127, 58, 0.4);
+    box-shadow: 0 12px 28px -16px rgba(94, 127, 58, 0.22);
+    background: var(--warm-white);
+  }
+
+  .bbg-faq-cream .bbg-faq-item {
+    background: var(--warm-white);
+    border-color: rgba(29, 29, 29, 0.06);
+  }
+
+  .bbg-faq-dark .bbg-faq-item {
+    background: rgba(247, 245, 241, 0.06);
+    border-color: rgba(247, 245, 241, 0.12);
+    backdrop-filter: blur(2px);
+  }
+
+  .bbg-faq-dark .bbg-faq-item:hover {
+    border-color: rgba(127, 163, 90, 0.4);
+    background: rgba(247, 245, 241, 0.08);
+  }
+
+  .bbg-faq-dark .bbg-faq-item[open] {
+    background: rgba(247, 245, 241, 0.1);
+    border-color: rgba(127, 163, 90, 0.5);
+  }
+
+  /* === Summary (the question row) ================================== */
+  .bbg-faq-summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--ink-black);
+    transition: color 180ms ease, background 180ms ease;
+  }
+
+  .bbg-faq-summary::-webkit-details-marker { display: none; }
+  .bbg-faq-summary::marker { content: ""; }
+
+  .bbg-faq-summary:hover { color: var(--green-deep); }
+  .bbg-faq-item[open] .bbg-faq-summary { color: var(--green-deep); }
+
+  .bbg-faq-dark .bbg-faq-summary { color: var(--warm-white); }
+  .bbg-faq-dark .bbg-faq-summary:hover { color: var(--sand-pale); }
+  .bbg-faq-dark .bbg-faq-item[open] .bbg-faq-summary { color: var(--sand-pale); }
+
+  .bbg-faq-q {
+    flex: 1;
+    text-wrap: pretty;
+  }
+
+  .bbg-faq-chev {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(94, 127, 58, 0.1);
+    color: var(--green-deep);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), background 220ms ease;
+  }
+
+  .bbg-faq-chev svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .bbg-faq-summary:hover .bbg-faq-chev,
+  .bbg-faq-item[open] .bbg-faq-chev {
+    background: var(--green-deep);
+    color: var(--warm-white);
+  }
+
+  .bbg-faq-item[open] .bbg-faq-chev {
+    transform: rotate(180deg);
+  }
+
+  .bbg-faq-dark .bbg-faq-chev {
+    background: var(--sand-pale);
+    color: var(--green-deep);
+  }
+
+  .bbg-faq-dark .bbg-faq-summary:hover .bbg-faq-chev,
+  .bbg-faq-dark .bbg-faq-item[open] .bbg-faq-chev {
+    background: var(--warm-white);
+    color: var(--ink-black);
+  }
+
+  /* === Answer ====================================================== */
+  .bbg-faq-a {
+    padding: 0 22px 22px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
+  }
+
+  .bbg-faq-dark .bbg-faq-a { color: rgba(247, 245, 241, 0.92); }
+
+  /* === Foot (bottom CTA) =========================================== */
+  .bbg-faq-foot {
+    margin-top: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .bbg-faq-foot.is-left {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .bbg-faq-foot-text {
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    max-width: 640px;
+    margin: 0;
+  }
+
+  .bbg-faq-dark .bbg-faq-foot-text { color: rgba(247, 245, 241, 0.92); }
+
+  .bbg-faq-arrow {
+    width: 14px;
+    height: 14px;
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .bbg-faq-foot .btn-primary:hover .bbg-faq-arrow,
+  .bbg-faq-foot .btn-primary:focus-visible .bbg-faq-arrow {
+    transform: translateX(3px);
+  }
+
+  /* === Subtle open animation ====================================== */
+  @media (prefers-reduced-motion: no-preference) {
+    .bbg-faq-item[open] .bbg-faq-a {
+      animation: bbg-faq-fade 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    @keyframes bbg-faq-fade {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: none; }
+    }
+  }
+</style>

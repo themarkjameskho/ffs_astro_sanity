@@ -1,0 +1,422 @@
+/**
+ * CRITICAL CSS - Inline in <head>
+ * Only above-the-fold styles needed for initial render
+ * 
+ * Includes:
+ * - Base typography and colors
+ * - Primary button
+ * - Navigation bar structure
+ * - Hero section
+ * - Mobile menu basics
+ */
+
+@import './tokens.css';
+
+@layer base {
+  @font-face {
+    font-family: 'IBM Plex Sans';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fonts/ibm-plex-sans-600.woff2') format('woff2'),
+      url('/fonts/ibm-plex-sans-600.ttf') format('truetype');
+  }
+
+  @font-face {
+    font-family: 'IBM Plex Sans';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/ibm-plex-sans-700.woff2') format('woff2'),
+      url('/fonts/ibm-plex-sans-700.ttf') format('truetype');
+  }
+
+  @font-face {
+    font-family: 'Open Sans';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/open-sans-400.woff2') format('woff2'),
+      url('/fonts/open-sans-400.ttf') format('truetype');
+  }
+
+  :root {
+    color: var(--color-text);
+    background: var(--color-surface);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--color-text);
+    background: var(--color-surface);
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    color: var(--color-text-strong);
+    text-wrap: balance;
+  }
+
+  /* v5-modern focus ring — accessible + on-brand */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid var(--green-deep);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+}
+
+@layer utilities {
+  .container {
+    width: min(1200px, 100%);
+    margin-inline: auto;
+  }
+
+  .subtitle-dark {
+    font-size: 1.125rem;
+    line-height: 1.5;
+    font-weight: 700;
+    color: #fdfefe;
+  }
+
+  @media (min-width: 768px) {
+    .subtitle-dark {
+      font-size: 1.25rem;
+    }
+  }
+
+  .section-description {
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  #site-nav[data-stuck='true'] {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  #site-nav[data-stuck='true'] a {
+    color: var(--color-text);
+  }
+
+  #site-nav .sticky-brand {
+    display: none;
+  }
+
+  #site-nav[data-stuck='true'] .sticky-brand {
+    display: inline-flex;
+  }
+
+  .mobile-menu-overlay {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .mobile-menu-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mobile-menu-panel {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+
+  .mobile-menu-panel.is-open {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* Hero v5-modern owns its own layout — see HeroSection.astro <style>. */
+}
+
+@layer components {
+  /**
+   * v5-modern button system
+   * Pill geometry, display-font, modern motion curve.
+   * Roles:
+   *   .btn-primary   — green-deep filled (default site CTAs)
+   *   .btn-secondary — soft / cream (alternative on green sections)
+   *   .btn-ghost     — outline (paired secondary, e.g. "Call us" next to primary)
+   *   .btn-emergency — red, EMERGENCY CTAs ONLY (do not use as a generic accent)
+   */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-emergency {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 1rem 1.625rem;
+    min-height: 54px;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: -0.005em;
+    border-radius: 999px;
+    text-decoration: none;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    transition:
+      transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      background 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      color 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      border-color 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* === Hover animation 1: diagonal shine sweep =====================
+     A bright diagonal gradient travels left → right across the button
+     face on hover. Pseudo-element keeps it isolated from the bg color. */
+  .btn-primary::before,
+  .btn-secondary::before,
+  .btn-ghost::before,
+  .btn-emergency::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      120deg,
+      transparent 0%,
+      transparent 38%,
+      rgba(255, 255, 255, 0.38) 50%,
+      transparent 62%,
+      transparent 100%
+    );
+    transform: translateX(-120%);
+    transition: transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+    z-index: 0;
+    border-radius: inherit;
+  }
+  .btn-primary:hover::before,
+  .btn-secondary:hover::before,
+  .btn-ghost:hover::before,
+  .btn-emergency:hover::before,
+  .btn-primary:focus-visible::before,
+  .btn-secondary:focus-visible::before,
+  .btn-ghost:focus-visible::before,
+  .btn-emergency:focus-visible::before {
+    transform: translateX(120%);
+  }
+  /* Keep the button label/icon above the shine + particle layers. */
+  .btn-primary > *,
+  .btn-secondary > *,
+  .btn-ghost > *,
+  .btn-emergency > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* === Hover animation 2: long-hover pulsing particles ============
+     After 1.5s of continuous hover, a soft radial pulse ring appears
+     behind the button and fades out — a "you've been here a moment,
+     here's a nudge" cue. Uses `animation-delay: 1.5s` on the ::after
+     so quick hovers (typical click-throughs) never trigger it. */
+  .btn-primary::after,
+  .btn-secondary::after,
+  .btn-ghost::after,
+  .btn-emergency::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    /* Minimal color pulse — soft inner brightness shift, no particles. */
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .btn-primary:hover::after,
+  .btn-secondary:hover::after,
+  .btn-ghost:hover::after,
+  .btn-emergency:hover::after,
+  .btn-primary:focus-visible::after,
+  .btn-secondary:focus-visible::after,
+  .btn-ghost:focus-visible::after,
+  .btn-emergency:focus-visible::after {
+    animation: bbg-btn-pulse 2000ms ease-in-out 1500ms infinite;
+  }
+
+  @keyframes bbg-btn-pulse {
+    0%, 100% { opacity: 0; }
+    50%      { opacity: 1; }
+  }
+
+  /* === Context-aware hover color ===================================
+     Default hover lands on --green-deep. On dark-green section wrappers
+     (.bbg-section-dark, .bbg-section-olive, .bbg-cta-fw-dark, .bbg-cta-
+     fw-olive, .bbg-icon-dark, .bbg-icon-olive, .bbg-steps-dark, pre-
+     footer CTA strip), the button would visually disappear. Override
+     to warm-white surface + ink-black text — same treatment the
+     Illinois/Wisconsin ghost buttons use in the pre-footer CTA. */
+  .bbg-section-dark .btn-primary:hover,
+  .bbg-section-dark .btn-secondary:hover,
+  .bbg-section-dark .btn-ghost:hover,
+  .bbg-section-dark .btn-emergency:hover,
+  .bbg-section-olive .btn-primary:hover,
+  .bbg-section-olive .btn-secondary:hover,
+  .bbg-section-olive .btn-ghost:hover,
+  .bbg-section-olive .btn-emergency:hover,
+  .bbg-cta-fw-dark .btn-primary:hover,
+  .bbg-cta-fw-dark .btn-secondary:hover,
+  .bbg-cta-fw-dark .btn-ghost:hover,
+  .bbg-cta-fw-dark .btn-emergency:hover,
+  .bbg-cta-fw-olive .btn-primary:hover,
+  .bbg-cta-fw-olive .btn-secondary:hover,
+  .bbg-cta-fw-olive .btn-ghost:hover,
+  .bbg-cta-fw-olive .btn-emergency:hover,
+  .bbg-icon-dark .btn-primary:hover,
+  .bbg-icon-dark .btn-secondary:hover,
+  .bbg-icon-dark .btn-ghost:hover,
+  .bbg-icon-dark .btn-emergency:hover,
+  .bbg-icon-olive .btn-primary:hover,
+  .bbg-icon-olive .btn-secondary:hover,
+  .bbg-icon-olive .btn-ghost:hover,
+  .bbg-icon-olive .btn-emergency:hover,
+  .bbg-steps-dark .btn-primary:hover,
+  .bbg-steps-dark .btn-secondary:hover,
+  .bbg-steps-dark .btn-ghost:hover,
+  .bbg-steps-dark .btn-emergency:hover,
+  .bbg-foot-cta-wrap .btn-primary:hover,
+  .bbg-foot-cta-wrap .btn-secondary:hover,
+  .bbg-foot-cta-wrap .btn-ghost:hover,
+  .bbg-foot-cta-wrap .btn-emergency:hover {
+    background: var(--warm-white);
+    color: var(--ink-black);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.4);
+  }
+
+  /* Exception: when the button is inside a WHITE CARD on a dark-green
+     section (vertical+card IconGrid, vertical+card Steps, dark-section
+     ImageCard, etc.), the button isn't actually sitting on dark green —
+     it's sitting on a white card surface. Revert to the normal green-
+     deep hover so it doesn't go white-on-white. */
+  .bbg-icon-dark .bbg-icon-card.is-card .btn-primary:hover,
+  .bbg-icon-dark .bbg-icon-card.is-card .btn-secondary:hover,
+  .bbg-icon-dark .bbg-icon-card.is-card .btn-ghost:hover,
+  .bbg-icon-dark .bbg-icon-card.is-card .btn-emergency:hover,
+  .bbg-icon-olive .bbg-icon-card.is-card .btn-primary:hover,
+  .bbg-icon-olive .bbg-icon-card.is-card .btn-secondary:hover,
+  .bbg-icon-olive .bbg-icon-card.is-card .btn-ghost:hover,
+  .bbg-icon-olive .bbg-icon-card.is-card .btn-emergency:hover,
+  .bbg-steps-dark .bbg-steps-card .btn-primary:hover,
+  .bbg-steps-dark .bbg-steps-card .btn-secondary:hover,
+  .bbg-steps-dark .bbg-steps-card .btn-ghost:hover,
+  .bbg-steps-dark .bbg-steps-card .btn-emergency:hover {
+    background: var(--green-deep);
+    color: #ffffff;
+    box-shadow: 0 12px 28px rgba(31, 77, 60, 0.42);
+  }
+
+  /* Respect reduced-motion: drop the shine + particles. */
+  @media (prefers-reduced-motion: reduce) {
+    .btn-primary::before,
+    .btn-secondary::before,
+    .btn-ghost::before,
+    .btn-emergency::before,
+    .btn-primary::after,
+    .btn-secondary::after,
+    .btn-ghost::after,
+    .btn-emergency::after {
+      display: none;
+    }
+  }
+
+  /**
+   * CTA buttons — both equal weight, no outline, white text.
+   *
+   * Unified hover language: ALL interactive elements (nav active,
+   * primary button, secondary button, ghost, emergency) hover to
+   * --green-deep (#1F4D3C). This gives every action surface on the
+   * site the same press-state, so users learn one rule and trust it.
+   *
+   *   .btn-primary   — Button 1: --btn-1 (#2FBF71)
+   *   .btn-secondary — Button 2: --btn-2 (#28B463)
+   *   .btn-ghost     — same Button 2 visual (filled, no outline)
+   *   .btn-emergency — red accent #C84545 — alerts/highlights
+   */
+  .btn-primary {
+    background: var(--btn-1);
+    color: #ffffff;
+    box-shadow: 0 8px 22px rgba(47, 191, 113, 0.32);
+  }
+
+  .btn-primary:hover,
+  .btn-primary:focus-visible {
+    background: var(--green-deep);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(31, 77, 60, 0.42);
+  }
+
+  .btn-secondary {
+    background: var(--btn-2);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 8px 22px rgba(40, 180, 99, 0.32);
+  }
+
+  .btn-secondary:hover,
+  .btn-secondary:focus-visible {
+    background: var(--green-deep);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(31, 77, 60, 0.42);
+  }
+
+  /* Ghost slot reused as a second filled button — no outlines anywhere. */
+  .btn-ghost {
+    background: var(--btn-2);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 8px 22px rgba(40, 180, 99, 0.32);
+  }
+
+  .btn-ghost:hover,
+  .btn-ghost:focus-visible {
+    background: var(--green-deep);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(31, 77, 60, 0.42);
+  }
+
+  /* Red accent — used only for alerts / badges / urgent highlights.
+     Per spec, NOT for large buttons. */
+  .btn-emergency {
+    background: var(--emergency);
+    color: #ffffff;
+    box-shadow: 0 6px 18px rgba(200, 69, 69, 0.32);
+  }
+
+  .btn-emergency:hover,
+  .btn-emergency:focus-visible {
+    background: var(--green-deep);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(31, 77, 60, 0.42);
+  }
+
+  /* NOTE: a previous "hide #site-nav on mobile" rule lived here. It was
+     hiding the entire header element on every viewport under 1280px,
+     not just the desktop nav. The desktop nav (.bbg-mast-nav) is already
+     hidden on mobile by scoped rules inside MainLayout.astro, so this
+     blanket rule is unnecessary — and was masking the regular mobile
+     header from the user. Do not re-add it. */
+}

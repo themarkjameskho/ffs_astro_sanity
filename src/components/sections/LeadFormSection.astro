@@ -1,0 +1,663 @@
+---
+/**
+ * LeadFormSection — v5-modern rebuild.
+ *
+ * Same Sanity props (title, subtitle, body, backgroundTheme, logo, alignment).
+ * Same hardcoded form fields and submit JS contract.
+ *
+ * Visual changes:
+ *   - Section uses .bbg-section padding and brand surfaces
+ *   - Centered head (eyebrow + h2 matching the rest of the design system)
+ *   - Form card is properly proportioned: rounded-32, bigger padding,
+ *     soft brand shadow, real visible labels
+ *   - Logo bumped from 64px max-height to 120px so it has presence
+ *   - Submit is now a full-width primary button (.btn-primary big enough
+ *     to be a real CTA, not a small oval)
+ *   - All inputs share consistent radius, padding, focus ring
+ */
+import type { LeadFormSection } from '../../types/sections';
+import { portableTextToHtml } from '../../lib/portableText';
+import { optimizeImageUrl } from '../../lib/imageOptimizer';
+import { splitHighlight } from '../../utils/highlightTitle';
+
+const rawProps = Astro.props as LeadFormSection & { pageSlug?: string };
+const pageSlug = rawProps.pageSlug ?? 'home';
+const props = rawProps as LeadFormSection;
+const titleSegments = props.title ? splitHighlight(props.title, (props as any).highlightText) : [];
+
+const rawBackgroundTheme = props.backgroundTheme ?? 'cream';
+const backgroundTheme =
+  (
+    {
+      blue: 'oliveGreen',
+      darkBlue: 'darkGreen',
+      yellow: 'cream',
+    } as Record<string, string>
+  )[rawBackgroundTheme] ?? rawBackgroundTheme;
+const isDarkSection = backgroundTheme === 'oliveGreen' || backgroundTheme === 'darkGreen';
+
+// Unique-per-instance id so multiple LeadFormSection blocks on the same
+// page (e.g. inline form + bottom CTA form) don't collide on the
+// `contact_form` id — duplicate ids are invalid HTML and break the JS
+// submit interception below. The shared `data-contact-form` attribute
+// lets the script find every instance with one selector.
+const formId = `contact_form_${Math.random().toString(36).slice(2, 9)}`;
+const defaultAction = '/api/contact';
+const bodyHtml = props.body ? portableTextToHtml(props.body) : '';
+const pageSlugValue = pageSlug?.length ? pageSlug : 'home';
+
+// Cloudflare Turnstile site key. Public by design (it identifies the
+// widget config to Cloudflare); the SECRET key lives server-side only
+// and is read in src/pages/api/contact.ts. If the site key is missing
+// or still the placeholder we skip rendering the widget and let the
+// form submit normally — so a misconfigured deploy never blocks leads.
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
+const turnstileEnabled =
+  typeof turnstileSiteKey === 'string' &&
+  turnstileSiteKey.length > 0 &&
+  !turnstileSiteKey.startsWith('__PASTE_');
+---
+
+<section class={`bbg-section bbg-form ${isDarkSection ? 'bbg-form-dark' : backgroundTheme === 'cream' ? 'bbg-form-cream' : 'bbg-form-light'}`} id="contact_form">
+  <div class="bbg-wrap">
+    {(props.title || props.subtitle || bodyHtml) && (
+      <div class="bbg-form-head">
+        <span class="bbg-form-eyebrow">
+          <span class="bbg-form-eyebrow-dot" aria-hidden="true"></span>
+          Get in touch
+        </span>
+        {props.title && (
+          <h2 class="bbg-form-title">
+            {titleSegments.map((segment) =>
+              segment.highlight ? (
+                <span class="bbg-form-leaf">{segment.text}</span>
+              ) : (
+                <span>{segment.text}</span>
+              )
+            )}
+          </h2>
+        )}
+        {props.subtitle && <p class="bbg-form-sub">{props.subtitle}</p>}
+        {bodyHtml && <div class="bbg-form-body" set:html={bodyHtml} />}
+      </div>
+    )}
+
+    <div class="bbg-form-card">
+      {props.logo?.url && (
+        <div class="bbg-form-logo">
+          <img
+            src={optimizeImageUrl(props.logo.url, { width: 360, height: 0, fit: 'scale' })}
+            alt={props.logo.alt ?? '{{BRAND_NAME}}'}
+            width={180}
+            height={120}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      )}
+
+      <form
+        id={formId}
+        data-contact-form
+        method="post"
+        action={defaultAction}
+        class="bbg-form-grid"
+      >
+        <input type="hidden" name="formTitle" value={props.title ?? 'Contact Form'} />
+        <input type="hidden" name="pageSlug" value={pageSlugValue} />
+
+        <div class="bbg-form-row">
+          <div class="bbg-form-field">
+            <label for="contact-first-name">First name</label>
+            <input
+              type="text"
+              id="contact-first-name"
+              name="firstName"
+              placeholder="Jane"
+              autocomplete="given-name"
+              required
+            />
+          </div>
+          <div class="bbg-form-field">
+            <label for="contact-last-name">Last name</label>
+            <input
+              type="text"
+              id="contact-last-name"
+              name="lastName"
+              placeholder="Doe"
+              autocomplete="family-name"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="bbg-form-row">
+          <div class="bbg-form-field">
+            <label for="contact-phone">Phone number</label>
+            <input
+              type="tel"
+              id="contact-phone"
+              name="phone"
+              placeholder="(555) 555-5555"
+              autocomplete="tel"
+              required
+            />
+          </div>
+          <div class="bbg-form-field">
+            <label for="contact-email">Email address</label>
+            <input
+              type="email"
+              id="contact-email"
+              name="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="bbg-form-field">
+          <label for="contact-address">Service address</label>
+          <input
+            type="text"
+            id="contact-address"
+            name="address"
+            placeholder="Street, City, State ZIP"
+            autocomplete="street-address"
+            required
+          />
+        </div>
+
+        <div class="bbg-form-row">
+          <div class="bbg-form-field">
+            <label for="contact-method">Method of contact</label>
+            <div class="bbg-form-select-wrap">
+              <select id="contact-method" name="methodOfContact" required>
+                <option value="">Select method</option>
+                <option value="Call Me">Call me</option>
+                <option value="Email Me">Email me</option>
+                <option value="Text Me">Text me</option>
+              </select>
+              <svg class="bbg-form-select-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+          </div>
+          <div class="bbg-form-field">
+            <label for="contact-best-time">Best time to reach you</label>
+            <div class="bbg-form-select-wrap">
+              <select id="contact-best-time" name="bestTime" required>
+                <option value="">Select time</option>
+                <option value="Morning">Morning</option>
+                <option value="Afternoon">Afternoon</option>
+                <option value="Evening">Evening</option>
+              </select>
+              <svg class="bbg-form-select-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bbg-form-field">
+          <label for="contact-message">Tell us what's going on</label>
+          <textarea
+            id="contact-message"
+            name="message"
+            placeholder="Where are the bites, when did you notice them, anything else we should know..."
+            rows="4"
+            required
+          ></textarea>
+        </div>
+
+        {turnstileEnabled && (
+          <div class="bbg-form-turnstile-wrap">
+            {/*
+              Cloudflare Turnstile widget. On render, Cloudflare injects
+              a hidden input named `cf-turnstile-response` into THIS form
+              with the token value. Our submit handler reads that token
+              from the FormData and POSTs it to /api/contact, which
+              validates it server-side with TURNSTILE_SECRET_KEY before
+              forwarding the lead to n8n.
+            */}
+            <div
+              class="cf-turnstile bbg-form-turnstile"
+              data-sitekey={turnstileSiteKey}
+              data-theme={isDarkSection ? 'dark' : 'light'}
+              data-size="flexible"
+            ></div>
+          </div>
+        )}
+
+        <div
+          class="bbg-form-status"
+          aria-live="polite"
+        ></div>
+
+        <button
+          type="submit"
+          class="btn-primary bbg-form-submit"
+          data-role="submit-btn"
+        >
+          <span data-default-label>Send my request</span>
+          <span data-loading-label class="bbg-form-loading">Sending&hellip;</span>
+          <svg viewBox="0 0 24 24" class="bbg-form-arrow" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+
+        <p class="bbg-form-fineprint">
+          We respond in under an hour during business hours. Your information stays private.
+        </p>
+      </form>
+    </div>
+  </div>
+</section>
+
+{/*
+  Load Turnstile API once per page. The `defer` keeps it off the
+  critical path; the script auto-discovers every .cf-turnstile element
+  on DOMContentLoaded and renders the widgets. If the script is already
+  on the page (multiple LeadFormSection instances), the duplicate
+  <script> is a no-op because Cloudflare's loader is idempotent.
+*/}
+{turnstileEnabled && (
+  <script
+    is:inline
+    src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+    defer
+  ></script>
+)}
+
+<style>
+  .bbg-form-light { background: var(--warm-white); }
+  .bbg-form-cream { background: var(--sand-pale); }
+  .bbg-form-dark  { background: var(--green-deep); color: var(--warm-white); }
+
+  /* === Head ======================================================== */
+  .bbg-form-head {
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto 48px;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-form-head { margin-bottom: 32px; }
+  }
+
+  .bbg-form-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    /* --emergency (#C84545) only hits ~4.3:1 on warm-white at 12px so
+       Lighthouse flagged the form eyebrow. --emergency-text (#A82929)
+       is the AA-safe red token reserved exactly for this case (~6.2:1
+       on cream, ~7.4:1 on white). */
+    color: var(--emergency-text);
+    margin-bottom: 18px;
+  }
+
+  .bbg-form-dark .bbg-form-eyebrow { color: var(--sand-pale); }
+
+  .bbg-form-eyebrow-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--emergency);
+    box-shadow: 0 0 0 3px rgba(202, 30, 53, 0.18);
+  }
+
+  .bbg-form-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-black);
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .bbg-form-dark .bbg-form-title { color: var(--warm-white); }
+
+  /* Unified highlight — red italic on light, sand-pale italic on dark. */
+  .bbg-form-leaf {
+    display: inline-block;
+    color: var(--emergency);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+  .bbg-form-dark .bbg-form-leaf {
+    color: var(--sand-pale);
+  }
+
+  .bbg-form-sub {
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin: 16px 0 0;
+  }
+
+  .bbg-form-dark .bbg-form-sub { color: rgba(247, 245, 241, 0.92); }
+
+  .bbg-form-body {
+    margin-top: 16px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+  }
+
+  .bbg-form-dark .bbg-form-body { color: rgba(247, 245, 241, 0.92); }
+
+  /* === Form card ==================================================== */
+  .bbg-form-card {
+    max-width: 760px;
+    margin: 0 auto;
+    background: var(--warm-white);
+    border-radius: 28px;
+    padding: 48px 48px 40px;
+    border: 1px solid rgba(29, 29, 29, 0.06);
+    box-shadow:
+      0 1px 0 rgba(29, 29, 29, 0.02),
+      0 40px 80px -32px rgba(29, 29, 29, 0.22);
+  }
+
+  @media (max-width: 720px) {
+    .bbg-form-card {
+      padding: 32px 24px 28px;
+      border-radius: 22px;
+    }
+  }
+
+  /* === Logo (much bigger now) ====================================== */
+  .bbg-form-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 36px;
+  }
+
+  .bbg-form-logo img {
+    width: auto;
+    height: auto;
+    max-height: 120px;
+    max-width: 240px;
+    object-fit: contain;
+  }
+
+  @media (max-width: 720px) {
+    .bbg-form-logo {
+      margin-bottom: 24px;
+    }
+    .bbg-form-logo img {
+      max-height: 88px;
+      max-width: 200px;
+    }
+  }
+
+  /* === Form grid + rows ============================================ */
+  .bbg-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .bbg-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+
+  @media (max-width: 600px) {
+    .bbg-form-row { grid-template-columns: 1fr; }
+  }
+
+  /* === Field label + input ========================================= */
+  .bbg-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .bbg-form-field label {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .bbg-form-field input,
+  .bbg-form-field textarea,
+  .bbg-form-field select {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--ink-black);
+    background: var(--warm-white);
+    border: 1.5px solid rgba(29, 29, 29, 0.12);
+    border-radius: 14px;
+    padding: 14px 16px;
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      background 180ms ease;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .bbg-form-field input::placeholder,
+  .bbg-form-field textarea::placeholder {
+    color: rgba(29, 29, 29, 0.42);
+  }
+
+  .bbg-form-field input:hover,
+  .bbg-form-field textarea:hover,
+  .bbg-form-field select:hover {
+    border-color: rgba(94, 127, 58, 0.45);
+  }
+
+  .bbg-form-field input:focus,
+  .bbg-form-field textarea:focus,
+  .bbg-form-field select:focus {
+    outline: none;
+    border-color: var(--green-deep);
+    box-shadow: 0 0 0 4px rgba(94, 127, 58, 0.16);
+  }
+
+  .bbg-form-field textarea {
+    resize: vertical;
+    min-height: 110px;
+    font-family: var(--font-body);
+  }
+
+  /* === Custom select chevron ======================================= */
+  .bbg-form-select-wrap {
+    position: relative;
+  }
+
+  .bbg-form-select-wrap select {
+    padding-right: 44px;
+  }
+
+  .bbg-form-select-chev {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--ink-soft);
+    pointer-events: none;
+  }
+
+  /* === Status / submit / fineprint ================================== */
+  .bbg-form-status {
+    min-height: 0;
+    text-align: center;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .bbg-form-status.is-success { color: var(--green-deep); padding: 8px 0; }
+  .bbg-form-status.is-error   { color: var(--emergency); padding: 8px 0; }
+
+  .bbg-form-submit {
+    align-self: stretch;
+    width: 100%;
+    min-height: 60px;
+    font-size: 15px;
+    margin-top: 8px;
+  }
+
+  .bbg-form-arrow {
+    width: 16px;
+    height: 16px;
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .bbg-form-submit:hover .bbg-form-arrow,
+  .bbg-form-submit:focus-visible .bbg-form-arrow {
+    transform: translateX(3px);
+  }
+
+  .bbg-form-loading {
+    display: none;
+  }
+
+  .bbg-form-submit[data-loading="true"] [data-default-label],
+  .bbg-form-submit[data-loading="true"] .bbg-form-arrow {
+    display: none;
+  }
+
+  .bbg-form-submit[data-loading="true"] .bbg-form-loading {
+    display: inline;
+  }
+
+  .bbg-form-submit[disabled] {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  /* Cloudflare Turnstile wrapper — keeps the widget on its own row and
+     gives it breathing room above the submit button. The widget itself
+     comes in two sizes; data-size="flexible" makes it stretch to its
+     parent's width on mobile and stay compact on desktop. */
+  .bbg-form-turnstile-wrap {
+    display: flex;
+    justify-content: center;
+    min-height: 65px;
+  }
+
+  .bbg-form-turnstile {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .bbg-form-fineprint {
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 0;
+    padding-top: 4px;
+  }
+</style>
+
+<script is:inline>
+  (() => {
+    // Find every LeadFormSection instance on the page. Using a data-attribute
+    // selector instead of getElementById so multiple forms (e.g. inline form
+    // + bottom CTA form) all get the same JS interception — previously only
+    // the first one was caught and any other form did a native POST that
+    // navigated the browser to /api/contact/ and showed raw JSON.
+    const forms = document.querySelectorAll('form[data-contact-form]');
+    if (!forms.length) return;
+
+    // Guard so this script is idempotent if it's somehow injected twice.
+    forms.forEach((form) => {
+      if (form.dataset.contactFormBound === 'true') return;
+      form.dataset.contactFormBound = 'true';
+
+      // Status + submit elements are scoped to THIS form so the right inline
+      // success/error message updates regardless of how many forms exist.
+      const statusEl = form.querySelector('.bbg-form-status');
+      const submitBtn = form.querySelector('[data-role="submit-btn"]');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new FormData(form);
+
+        // Cloudflare Turnstile gate. If this form has a widget (.cf-turnstile),
+        // require a valid token before we send anything to /api/contact.
+        // The token is injected by Cloudflare's script as a hidden input
+        // named `cf-turnstile-response`. Missing/empty token = user hasn't
+        // completed the challenge yet (or Turnstile failed to load).
+        const turnstileWidget = form.querySelector('.cf-turnstile');
+        if (turnstileWidget) {
+          const token = formData.get('cf-turnstile-response');
+          if (!token || (typeof token === 'string' && token.length < 10)) {
+            if (statusEl) {
+              statusEl.textContent = 'Please complete the security check above before submitting.';
+              statusEl.className = 'bbg-form-status is-error';
+            }
+            return;
+          }
+        }
+
+        const bodyData = new URLSearchParams();
+        formData.forEach((value, key) => bodyData.append(key, value.toString()));
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.setAttribute('data-loading', 'true');
+        }
+        if (statusEl) {
+          statusEl.textContent = '';
+          statusEl.className = 'bbg-form-status';
+        }
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: bodyData.toString()
+          });
+
+          if (response.ok) {
+            form.reset();
+            // Turnstile tokens are one-shot. Reset the widget so a second
+            // submission from the same page asks for a fresh challenge.
+            if (window.turnstile && turnstileWidget) {
+              try { window.turnstile.reset(turnstileWidget); } catch (e) {}
+            }
+            if (statusEl) {
+              statusEl.textContent = 'Thanks! A {{BRAND_NAME}} specialist will contact you shortly.';
+              statusEl.className = 'bbg-form-status is-success';
+            }
+          } else {
+            throw new Error('Submission failed');
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.textContent = 'Something went wrong. Please call us directly while we fix the form.';
+            statusEl.className = 'bbg-form-status is-error';
+          }
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.removeAttribute('data-loading');
+          }
+        }
+      });
+    });
+  })();
+</script>

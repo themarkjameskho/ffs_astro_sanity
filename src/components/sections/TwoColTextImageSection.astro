@@ -1,0 +1,766 @@
+---
+import type { TwoColTextImageSection } from "../../types/sections";
+import { portableTextToHtml } from "../../lib/portableText";
+import { splitHighlight } from "../../utils/highlightTitle";
+import {
+  buildSanityImageUrl,
+  optimizeImageUrl,
+  type SanityImageSource,
+} from "../../lib/imageOptimizer";
+import { normalizeInternalHref } from "../../lib/links";
+
+const props = Astro.props as TwoColTextImageSection;
+const imageLeft = props.imagePlacement === "imageLeft";
+const ctaHref = normalizeInternalHref(props.ctaLink);
+const secondaryCtaHref = normalizeInternalHref(props.secondaryCtaLink);
+const normalizeImage = (
+  img?:
+    | string
+    | {
+        url?: string;
+        alt?: string;
+        imageUrl?: string;
+        src?: string;
+        crop?: { top: number; bottom: number; left: number; right: number };
+        hotspot?: { x: number; y: number; height: number; width: number };
+        image?: {
+          url?: string;
+          src?: string;
+          crop?: { top: number; bottom: number; left: number; right: number };
+          hotspot?: { x: number; y: number; height: number; width: number };
+          asset?: {
+            _ref?: string;
+            _id?: string;
+            _type?: string;
+            url?: string;
+            src?: string;
+          };
+        };
+        asset?: {
+          _ref?: string;
+          _id?: string;
+          _type?: string;
+          url?: string;
+          src?: string;
+        };
+      },
+) => {
+  if (!img) return null;
+  if (typeof img === "string") {
+    return { url: img, alt: props.title, source: undefined };
+  }
+
+  const url =
+    img.url ||
+    img.src ||
+    img.imageUrl ||
+    img.image?.url ||
+    img.image?.src ||
+    img.image?.asset?.url ||
+    img.image?.asset?.src ||
+    img.asset?.url ||
+    img.asset?.src;
+  if (!url) return null;
+
+  const source =
+    img.image && (img.image.asset || img.image.url)
+      ? ({
+          url: img.image.url,
+          asset: img.image.asset,
+          crop: img.image.crop,
+          hotspot: img.image.hotspot,
+        } satisfies SanityImageSource)
+      : img.asset || img.url
+        ? ({
+            url: img.url,
+            asset: img.asset,
+            crop: img.crop,
+            hotspot: img.hotspot,
+          } satisfies SanityImageSource)
+        : undefined;
+
+  return { url, alt: img.alt ?? props.title, source };
+};
+
+const gallery = props.images?.length
+  ? props.images.map((img) => normalizeImage(img)).filter(Boolean) as {
+      url: string;
+      alt?: string;
+      source?: SanityImageSource;
+    }[]
+  : normalizeImage(props.image)
+    ? [normalizeImage(props.image)!]
+    : [];
+const rawBackgroundTheme = props.backgroundTheme ?? "white";
+const backgroundTheme =
+  (
+    {
+      blue: "oliveGreen",
+      darkBlue: "darkGreen",
+      yellow: "cream",
+    } as Record<string, string>
+  )[rawBackgroundTheme] ?? rawBackgroundTheme;
+
+/**
+ * Theme classes use scoped CSS rules (defined in this file's <style>
+ * block) instead of Tailwind arbitrary values like `bg-[--green-deep]`.
+ * Tailwind v4 silently drops that legacy syntax, which previously
+ * caused white text to render on a default warm-white bg (invisible).
+ *
+ * Background palette unified with CtaSection's sectionBackground field:
+ *   white       — surface-white   (light text scheme)
+ *   soft-green  — surface-soft-green (light text scheme)
+ *   sage        — surface-sage    (light text scheme)
+ *   cream       — sand-pale       (light text scheme)
+ *   oliveGreen  — true olive #5E7F3A (dark text scheme) — visibly
+ *                 distinct from darkGreen
+ *   darkGreen   — green-deep      (dark text scheme)
+ */
+const themeConfig = {
+  white: {
+    base: "bbg-twocol-theme-white",
+    title: "bbg-twocol-title-light",
+    subtitle: "bbg-twocol-sub-light",
+    highlight: "bbg-twocol-highlight",
+    isDark: false,
+  },
+  "soft-green": {
+    base: "bbg-twocol-theme-softgreen",
+    title: "bbg-twocol-title-light",
+    subtitle: "bbg-twocol-sub-light",
+    highlight: "bbg-twocol-highlight",
+    isDark: false,
+  },
+  sage: {
+    base: "bbg-twocol-theme-sage",
+    title: "bbg-twocol-title-light",
+    subtitle: "bbg-twocol-sub-light",
+    highlight: "bbg-twocol-highlight",
+    isDark: false,
+  },
+  cream: {
+    base: "bbg-twocol-theme-cream",
+    title: "bbg-twocol-title-light",
+    subtitle: "bbg-twocol-sub-light",
+    highlight: "bbg-twocol-highlight",
+    isDark: false,
+  },
+  oliveGreen: {
+    base: "bbg-twocol-theme-olive",
+    title: "bbg-twocol-title-dark",
+    subtitle: "bbg-twocol-sub-dark",
+    highlight: "bbg-twocol-highlight-dark",
+    isDark: true,
+  },
+  darkGreen: {
+    base: "bbg-twocol-theme-darkgreen",
+    title: "bbg-twocol-title-dark",
+    subtitle: "bbg-twocol-sub-dark",
+    highlight: "bbg-twocol-highlight-dark",
+    isDark: true,
+  },
+} as const;
+
+const theme =
+  themeConfig[backgroundTheme as keyof typeof themeConfig] ?? themeConfig.white;
+const baseClasses = theme.base;
+const titleColor = theme.title;
+const mutedClass = theme.subtitle;
+const subtitleClass = theme.isDark ? "subtitle-dark" : "subtitle";
+const highlightClass = theme.highlight;
+const galleryCount = gallery.length;
+const descriptionHtml = props.description
+  ? portableTextToHtml(props.description, theme.isDark)
+  : "";
+const descriptionColorClass = theme.isDark ? "prose-invert text-white/90" : "text-[--color-text]";
+const titleSegments = props.title ? splitHighlight(props.title, props.highlightText) : [];
+const hasPrimaryCta = Boolean(props.ctaLabel && ctaHref);
+const hasSecondaryCta = Boolean(props.secondaryCtaLabel && secondaryCtaHref);
+const isSingleImage = galleryCount === 1;
+
+const galleryClasses = (() => {
+  if (galleryCount === 1) return "grid gap-4";
+  if (galleryCount >= 3) return "grid gap-4 md:grid-cols-2 md:grid-rows-2";
+  return "grid gap-4";
+})();
+
+// Keep faces/details in frame for multi-image layout by biasing object position upward
+const objectPositionClass = galleryCount >= 3 ? "object-[50%_20%]" : "object-center";
+
+// Single-image URLs use fit: crop with width + height so Sanity's
+// hotspot/crop is honored — matches how the multi-image gallery cells
+// already build their sources.
+//   Desktop variant: 4:5 portrait beside the text column.
+//   Mobile variant:  4:3 landscape so the image doesn't dominate the
+//                    phone's viewport vertically (same approach the hero
+//                    1-column image uses on mobile).
+const SINGLE_IMAGE_ASPECT_DESKTOP = 5 / 4; // portrait
+const SINGLE_IMAGE_ASPECT_MOBILE = 3 / 4; // landscape
+
+const buildSingleImageSrcInternal = (
+  image: { url: string; source?: SanityImageSource },
+  width: number,
+  aspect: number,
+) => {
+  const height = Math.round(width * aspect);
+  const quality = width <= 768 ? 74 : 78;
+  return image.source
+    ? buildSanityImageUrl(image.source, {
+        width,
+        height,
+        quality,
+        format: "webp",
+        fit: "crop",
+      }) ||
+        optimizeImageUrl(image.url, {
+          width,
+          height,
+          quality,
+          format: "webp",
+          fit: "crop",
+        })
+    : optimizeImageUrl(image.url, {
+        width,
+        height,
+        quality,
+        format: "webp",
+        fit: "crop",
+      });
+};
+
+const buildSingleImageSrc = (
+  image: { url: string; source?: SanityImageSource },
+  width: number,
+) => buildSingleImageSrcInternal(image, width, SINGLE_IMAGE_ASPECT_DESKTOP);
+
+const buildSingleImageSrcMobile = (
+  image: { url: string; source?: SanityImageSource },
+  width: number,
+) => buildSingleImageSrcInternal(image, width, SINGLE_IMAGE_ASPECT_MOBILE);
+
+const buildGalleryCropSrc = (
+  image: { url: string; source?: SanityImageSource },
+  width: number,
+  height: number,
+  quality: number,
+) =>
+  image.source
+    ? buildSanityImageUrl(image.source, {
+        width,
+        height,
+        quality,
+        format: "webp",
+        fit: "crop",
+      }) || optimizeImageUrl(image.url, {
+        width,
+        height,
+        quality,
+        format: "webp",
+        fit: "crop",
+      })
+    : optimizeImageUrl(image.url, {
+        width,
+        height,
+        quality,
+        format: "webp",
+        fit: "crop",
+      });
+
+const getImageSpanClasses = (index: number) => {
+  if (galleryCount === 1) {
+    // Aspect-ratio container + object-cover so the image fills the
+    // column and visually balances the text. Sanity hotspot/crop is
+    // honored via the buildSingleImageSrc URL (fit: crop).
+    // 4:5 portrait — taller than wide so it reads as a portrait beside
+    // the text column.
+    return "bbg-twocol-single rounded-[28px] w-full aspect-[4/5]";
+  }
+  if (galleryCount >= 3) {
+    if (index === 0) {
+      return `rounded-[32px] aspect-[4/3] md:row-span-2 md:self-center md:aspect-square ${!imageLeft ? "md:order-2 md:col-start-2" : ""}`;
+    }
+    if (index === 1) {
+      return `rounded-[24px] aspect-[4/3] md:aspect-square md:self-center ${!imageLeft ? "md:order-1 md:col-start-1 md:row-start-1" : ""}`;
+    }
+    if (index === 2) {
+      return `rounded-[24px] aspect-[4/3] md:aspect-square md:self-center ${!imageLeft ? "md:order-1 md:col-start-1 md:row-start-2" : ""}`;
+    }
+    return "rounded-[24px]";
+  }
+  return "rounded-[28px] aspect-[4/3] w-full";
+};
+---
+
+<section class={`section-full-width-lg bbg-twocol-section ${baseClasses}`}>
+  <div
+    class={`section-container bbg-twocol-grid ${imageLeft ? "is-image-left" : "is-image-right"}`}
+  >
+    <div class="bbg-twocol-content">
+      {
+        props.title && (
+          <h2 class={`bbg-twocol-title ${titleColor}`}>
+            {
+              titleSegments.map((segment) =>
+                segment.highlight ? (
+                  <span class={highlightClass}>{segment.text}</span>
+                ) : (
+                  <span class={titleColor}>{segment.text}</span>
+                ),
+              )
+            }
+          </h2>
+        )
+      }
+      {
+        props.subtitle && props.subtitle.trim().length > 0 && (
+          <p
+            class={subtitleClass}
+          >
+            {props.subtitle.trim()}
+          </p>
+        )
+      }
+      {
+        descriptionHtml && (
+          <div
+            class={`section-description prose max-w-none space-y-4 text-sm md:text-base ${descriptionColorClass}`}
+            set:html={descriptionHtml}
+          />
+        )
+      }
+      {
+        props.bullets && props.bullets.length > 0 && (
+          <div class="bbg-twocol-bullets">
+            {props.bulletTitle && (
+              <p class={`bbg-twocol-bullet-title ${mutedClass}`}>
+                {props.bulletTitle}
+              </p>
+            )}
+            <ul class="bbg-twocol-bullet-list">
+              {props.bullets.map((bullet) => (
+                <li class={`bbg-twocol-bullet ${mutedClass}`}>
+                  {(props.bulletIcon ?? 'check') === 'circle' ? (
+                    <span class="bbg-twocol-bullet-mark is-circle" aria-hidden="true" />
+                  ) : (
+                    <span class="bbg-twocol-bullet-mark is-check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12l5 5L20 7" />
+                      </svg>
+                    </span>
+                  )}
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
+      {
+        (hasPrimaryCta || hasSecondaryCta) && (
+          <div class="bbg-twocol-ctas">
+            {hasPrimaryCta && (
+              <a href={ctaHref} class="btn-primary">
+                {props.ctaLabel}
+              </a>
+            )}
+            {hasSecondaryCta && (
+              <a href={secondaryCtaHref} class="btn-primary">
+                {props.secondaryCtaLabel}
+              </a>
+            )}
+          </div>
+        )
+      }
+    </div>
+    <div
+      class={`flex items-center justify-center w-full ${galleryCount >= 3 ? "md:items-stretch" : ""}`}
+    >
+      {
+        galleryCount > 0 ? (
+          <div
+            class={`w-full bbg-twocol-gallery ${galleryCount >= 3 ? "is-multi" : "is-single"} ${galleryClasses} ${galleryCount >= 3 ? "md:auto-rows-max md:items-center" : ""}`}
+          >
+            {gallery.slice(0, 4).map((image, index) => (
+              <div
+                class={`overflow-hidden ${galleryCount === 1 ? "relative w-full" : "relative max-h-80 md:max-h-none"} ${getImageSpanClasses(index)}`}
+              >
+                {isSingleImage ? (
+                  <picture>
+                    {/* Mobile gets a 4:3 landscape crop — same compact
+                        shape the hero 1-column image uses, so a single
+                        portrait image doesn't dominate the phone screen. */}
+                    <source
+                      media="(max-width: 767px)"
+                      srcset={`${buildSingleImageSrcMobile(image, 480)} 480w, ${buildSingleImageSrcMobile(image, 768)} 768w`}
+                      sizes="100vw"
+                    />
+                    {/* Desktop fallback: 4:5 portrait beside the text.
+                        480w variant added so narrower desktop viewports
+                        (where 50vw < 500px) pick a smaller file. PageSpeed
+                        was flagging the 768w as oversized at ~380px column
+                        widths — adding 480w lets the browser pick optimally. */}
+                    <img
+                      src={buildSingleImageSrc(image, 1200)}
+                      srcset={`${buildSingleImageSrc(image, 480)} 480w, ${buildSingleImageSrc(image, 600)} 600w, ${buildSingleImageSrc(image, 768)} 768w, ${buildSingleImageSrc(image, 1200)} 1200w, ${buildSingleImageSrc(image, 1600)} 1600w`}
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      alt={image.alt ?? props.title}
+                      width={1200}
+                      height={1500}
+                      class="absolute inset-0 h-full w-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </picture>
+                ) : (
+                  <picture>
+                    <source
+                      media="(max-width: 768px)"
+                      srcset={`${buildGalleryCropSrc(image, 380, 300, 70)} 380w, ${buildGalleryCropSrc(image, 640, 400, 72)} 640w`}
+                      sizes="(max-width: 768px) 100vw"
+                    />
+                    {/* 380w added for narrow desktop columns. */}
+                    <img
+                      src={buildGalleryCropSrc(image, 900, 675, 78)}
+                      srcset={`${buildGalleryCropSrc(image, 380, 285, 70)} 380w, ${buildGalleryCropSrc(image, 480, 360, 72)} 480w, ${buildGalleryCropSrc(image, 768, 576, 75)} 768w, ${buildGalleryCropSrc(image, 1200, 900, 78)} 1200w`}
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      alt={image.alt ?? props.title}
+                      width={800}
+                      height={600}
+                      class={`absolute inset-0 h-full w-full object-cover ${objectPositionClass}`}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </picture>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div class="h-64 w-full rounded-3xl bg-linear-to-br from-(--color-primary) to-(--color-secondary) opacity-70" />
+        )
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  /* === Section grid ===============================================
+     Replaces the previous Tailwind grid + space-y-5 utility chain.
+     space-y-5 was silently dropping under Tailwind v4 in scoped Astro
+     context, leaving title/subtitle/body crammed together. Explicit
+     CSS makes spacing predictable regardless of which children render. */
+  .bbg-twocol-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .bbg-twocol-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+
+  @media (min-width: 768px) {
+    .bbg-twocol-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 56px;
+    }
+    .bbg-twocol-grid.is-image-left .bbg-twocol-content { order: 2; }
+    .bbg-twocol-grid.is-image-left > div:last-child   { order: 1; }
+  }
+
+  /* Content column — gap-driven flex column so every direct child gets
+     a consistent 20px vertical rhythm with or without the subtitle. */
+  .bbg-twocol-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* H2 sized to match every other section heading across the site —
+     same scale and weight, brand-consistent. */
+  .bbg-twocol-title {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: clamp(28px, 4.5vw, 52px);
+    line-height: 1.06;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  /* === Theme variants — scoped so Tailwind v4 can't silently drop them. */
+  .bbg-twocol-theme-white     { background: var(--surface-white);      color: var(--ink-soft); }
+  .bbg-twocol-theme-softgreen { background: var(--surface-soft-green); color: var(--ink-soft); }
+  .bbg-twocol-theme-sage      { background: var(--surface-sage);       color: var(--ink-soft); }
+  .bbg-twocol-theme-cream     { background: var(--sand-pale);          color: var(--ink-soft); }
+  /* True olive — distinctly more yellow-green than green-deep so the
+     "Olive Green" Sanity option visibly differs from "Dark Green". */
+  .bbg-twocol-theme-olive     { background: #5E7F3A;                   color: var(--warm-white); }
+  .bbg-twocol-theme-darkgreen { background: var(--green-deep);         color: var(--warm-white); }
+
+  /* Title + subtitle color tokens per theme. */
+  .bbg-twocol-title-light     { color: var(--ink-black); }
+  .bbg-twocol-title-dark      { color: var(--warm-white); }
+  .bbg-twocol-sub-light       { color: var(--ink-soft); }
+  .bbg-twocol-sub-dark        { color: rgba(247, 245, 241, 0.92); }
+
+  /* Subtitle styling — heavier hand than body so it reads as a deck. */
+  .subtitle,
+  .subtitle-dark {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: clamp(15px, 1.4vw, 17px);
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  /* Highlight word — red italic on light bg, sand-pale italic on dark bg.
+     Matches the hero "Aprehend" treatment site-wide. */
+  .bbg-twocol-highlight {
+    display: inline-block;
+    color: var(--emergency);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+  .bbg-twocol-highlight-dark {
+    display: inline-block;
+    color: var(--sand-pale);
+    font-style: italic;
+    padding-right: 0.05em;
+  }
+
+  /* === CTAs =======================================================
+     Buttons inside the text column. Left-aligned on desktop (so they
+     anchor with the body text), centered on mobile (so they sit
+     visually balanced in the single-column stack). */
+  .bbg-twocol-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 8px;
+    justify-content: flex-start;
+  }
+
+  @media (max-width: 767px) {
+    .bbg-twocol-ctas {
+      justify-content: center;
+      align-items: center;
+    }
+  }
+
+  /* === Bullets =====================================================
+     Two icon styles, chosen via Sanity's bulletIcon field:
+       - check  → red ring with sand-pale fill + brand-green check
+       - circle → solid red dot (sand-pale on dark themes)
+     Colors flip automatically on dark themes via .bbg-twocol-theme-* . */
+  .bbg-twocol-bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .bbg-twocol-bullet-title {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: clamp(16px, 1.4vw, 18px);
+    margin: 0;
+  }
+
+  .bbg-twocol-bullet-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bbg-twocol-bullet {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-family: var(--font-body);
+    font-size: clamp(15px, 1.1vw, 16px);
+    line-height: 1.55;
+  }
+
+  .bbg-twocol-bullet-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* Check chip — red outline + sand-pale fill, green check inside. */
+  .bbg-twocol-bullet-mark.is-check {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--sand-pale);
+    border: 2px solid var(--emergency);
+    color: var(--green-deep);
+  }
+
+  .bbg-twocol-bullet-mark.is-check svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Solid circle — small filled dot. */
+  .bbg-twocol-bullet-mark.is-circle {
+    width: 10px;
+    height: 10px;
+    margin-top: 9px; /* align with cap height of body text */
+    border-radius: 999px;
+    background: var(--emergency);
+    box-shadow: 0 0 0 3px rgba(200, 69, 69, 0.18);
+  }
+
+  /* Mobile: bullets always left-align (defensive — TwoCol normally
+     left-aligns content but reinforces here to match the site-wide
+     mobile bullet convention). */
+  @media (max-width: 767px) {
+    .bbg-twocol-bullets {
+      align-self: stretch;
+      width: 100%;
+      text-align: left;
+    }
+    .bbg-twocol-bullet-title { text-align: left; }
+    .bbg-twocol-bullet-list { align-items: flex-start; }
+    .bbg-twocol-bullet { text-align: left; }
+  }
+
+  /* Dark-theme overrides — both olive and dark green flip the markers
+     to sand-pale so they read against the dark surface. */
+  .bbg-twocol-theme-olive .bbg-twocol-bullet-mark.is-check,
+  .bbg-twocol-theme-darkgreen .bbg-twocol-bullet-mark.is-check {
+    background: rgba(247, 245, 241, 0.18);
+    border-color: var(--sand-pale);
+    color: var(--warm-white);
+  }
+
+  .bbg-twocol-theme-olive .bbg-twocol-bullet-mark.is-circle,
+  .bbg-twocol-theme-darkgreen .bbg-twocol-bullet-mark.is-circle {
+    background: var(--sand-pale);
+    box-shadow: 0 0 0 3px rgba(236, 227, 212, 0.22);
+  }
+
+  /* === Mobile responsive hardening ================================ */
+  @media (max-width: 767px) {
+    /* Compact section padding on phones so the gallery image and copy
+       stay above-the-fold on common viewports (375–414px). */
+    .bbg-twocol-section { padding-top: 40px; padding-bottom: 40px; }
+
+    /* On a small screen the prose body should breathe; bullets/lists
+       inside it stay aligned with the title's left edge. */
+    .bbg-twocol-content :global(.section-description) {
+      padding: 0;
+    }
+    .bbg-twocol-content :global(.section-description) :global(ul),
+    .bbg-twocol-content :global(.section-description) :global(ol) {
+      padding-left: 1.25rem;
+    }
+
+    /* Gallery max-height so a tall single image doesn't dominate the
+       viewport when stacked above/below the copy. */
+    .bbg-twocol-grid > div:last-child :global(img) {
+      max-height: 70vh;
+    }
+
+    /* === Multi-image gallery → horizontal scroll strip ==============
+       3+ images on mobile become a swipeable row. The container's
+       Tailwind grid utilities are explicitly nuked here so the flex
+       row + horizontal overflow can take over. */
+    .bbg-twocol-gallery.is-multi {
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      grid-template-columns: none !important;
+      grid-template-rows: none !important;
+      grid-auto-rows: auto !important;
+      grid-auto-flow: row !important;
+      gap: 12px !important;
+      overflow-x: scroll !important;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      margin-left: -16px;
+      margin-right: -16px;
+      padding: 0 32px 12px 16px;
+      max-width: calc(100% + 32px);
+    }
+
+    .bbg-twocol-gallery.is-multi::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+
+    /* Each image cell becomes a fixed-width scroll snap card. */
+    .bbg-twocol-gallery.is-multi > div {
+      flex: 0 0 78% !important;
+      width: 78% !important;
+      max-width: 78% !important;
+      min-width: 78% !important;
+      max-height: none !important;
+      height: auto !important;
+      aspect-ratio: 4 / 3 !important;
+      scroll-snap-align: start;
+      position: relative;
+      margin: 0 !important;
+      grid-row: auto !important;
+      grid-column: auto !important;
+      grid-column-start: auto !important;
+      grid-row-start: auto !important;
+      order: 0 !important;
+    }
+
+    /* Images inside fill the card. */
+    .bbg-twocol-gallery.is-multi > div :global(img) {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover;
+      max-height: none !important;
+    }
+
+    /* Subtle right-edge fade — visual cue that more content is to the
+       right. Sits on the section container, fades the last 24px. */
+    .bbg-twocol-section:has(.bbg-twocol-gallery.is-multi) .bbg-twocol-grid > div:last-child {
+      position: relative;
+    }
+    .bbg-twocol-section:has(.bbg-twocol-gallery.is-multi) .bbg-twocol-grid > div:last-child::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 32px;
+      pointer-events: none;
+      background: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.04) 100%);
+    }
+  }
+
+  /* === Single-image sizing on mobile =============================
+     Desktop keeps the 4:5 portrait aspect (set by Tailwind aspect-[4/5]
+     on the .bbg-twocol-single class). On mobile, override to a compact
+     4:3 landscape — same pattern the hero 1-column image uses on mobile,
+     so a single image never dominates the phone's viewport vertically.
+     The image still fills its container at 100% × 100% with object-fit:
+     cover (Sanity hotspot honored). */
+  @media (max-width: 767px) {
+    .bbg-twocol-gallery.is-single {
+      max-width: 100%;
+    }
+    .bbg-twocol-gallery.is-single > div.bbg-twocol-single {
+      aspect-ratio: 4 / 3 !important;
+      max-height: none;
+    }
+  }
+</style>

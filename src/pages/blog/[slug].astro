@@ -1,0 +1,196 @@
+---
+export const prerender = false;
+import MainLayout from "../../components/layouts/MainLayout.astro";
+import { getSanityClient } from "../../lib/sanityClient";
+import {
+  fetchAllBlogPostSlugs,
+  fetchAllBlogPosts,
+} from "../../lib/queries/allBlogPosts";
+import { portableTextToHtml } from "../../lib/portableText";
+import { optimizeImageUrl } from "../../lib/imageOptimizer";
+
+export async function getStaticPaths() {
+  // Use lightweight query to get only slugs for getStaticPaths
+  const slugEntries = await fetchAllBlogPostSlugs();
+
+  // For each slug, we'll fetch the full post data during rendering
+  return slugEntries.map((entry: any) => ({
+    params: { slug: entry.slug },
+    props: { slug: entry.slug },
+  }));
+}
+
+interface Props {
+  slug: string;
+}
+
+const { slug: slugProp } = Astro.props as Props;
+const { slug: slugParam } = Astro.params;
+const slug = slugProp || slugParam;
+
+// Fetch full post data for the requested slug
+const sanityClient = getSanityClient();
+if (!sanityClient) {
+  return new Response("Not Found", { status: 404 });
+}
+
+const post = await sanityClient.fetch(
+  `
+  *[_type == 'blogPost' && slug.current == $slug][0]{
+    title,
+    slug,
+    excerpt,
+    publishedAt,
+    featuredImage {
+      asset -> {
+        url,
+        metadata {
+          dimensions {
+            width,
+            height
+          }
+        }
+      },
+      alt
+    },
+    author,
+    "categories": categories[]->name,
+    "categorySlugs": categories[]->slug.current,
+    "tags": tags[]->name,
+    content,
+    seo {
+      metaTitle,
+      metaDescription,
+      canonicalUrl
+    }
+  }
+`,
+  { slug },
+);
+
+if (!post) {
+  return new Response("Not Found", { status: 404 });
+}
+
+const htmlContent = post.content ? portableTextToHtml(post.content, false) : "";
+const featuredImageUrl = post.featuredImage?.asset?.url;
+const featuredImageAlt = post.featuredImage?.alt || post.title;
+const featuredImage = featuredImageUrl
+  ? {
+      src: optimizeImageUrl(featuredImageUrl, {
+        width: 1200,
+        height: 600,
+        fit: "crop",
+        quality: 82,
+      }),
+      srcset: [
+        `${optimizeImageUrl(featuredImageUrl, { width: 600, height: 300, fit: "crop", quality: 78 })} 600w`,
+        `${optimizeImageUrl(featuredImageUrl, { width: 1000, height: 500, fit: "crop", quality: 80 })} 1000w`,
+        `${optimizeImageUrl(featuredImageUrl, { width: 1200, height: 600, fit: "crop", quality: 82 })} 1200w`,
+      ].join(", "),
+      sizes: "(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px",
+    }
+  : null;
+---
+
+<MainLayout
+  pageTitle={post.title}
+  description={post.excerpt || post.seo?.metaDescription}
+  canonicalUrl={post.seo?.canonicalUrl}
+>
+  <article class="w-full bg-white section-padding">
+    <div class="mx-auto w-full max-w-4xl px-4">
+      {/* Featured Image */}
+      {
+        featuredImage && (
+          <div class="mb-8 overflow-hidden rounded-2xl">
+            <img
+              src={featuredImage.src}
+              srcset={featuredImage.srcset}
+              sizes={featuredImage.sizes}
+              alt={featuredImageAlt}
+              width={1000}
+              height={500}
+              class="aspect-[2/1] w-full object-cover"
+              loading="eager"
+              fetchpriority="high"
+              decoding="async"
+            />
+          </div>
+        )
+      }
+
+      {/* Meta Information */}
+      <div
+        class="mb-8 flex flex-wrap items-center gap-4 border-b border-slate-200 pb-6"
+      >
+        {
+          post.categories?.length > 0 && (
+            <div class="flex flex-wrap gap-2">
+              {post.categories.map((category: string) => (
+                <span class="inline-block rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+                  {category}
+                </span>
+              ))}
+            </div>
+          )
+        }
+        {
+          post.publishedAt && (
+            <span class="text-sm text-slate-600">
+              {new Date(post.publishedAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </span>
+          )
+        }
+        {
+          post.author && (
+            <span class="text-sm text-slate-600">By {post.author}</span>
+          )
+        }
+      </div>
+
+      {/* Title */}
+      <h1 class="mb-6 text-5xl font-bold text-slate-900">{post.title}</h1>
+
+      {/* Excerpt */}
+      {
+        post.excerpt && (
+          <p class="mb-8 text-xl text-slate-700">{post.excerpt}</p>
+        )
+      }
+
+      {/* Content */}
+      {
+        htmlContent && (
+          <div class="prose prose-lg max-w-none mb-12 space-y-4">
+            <Fragment set:html={htmlContent} />
+          </div>
+        )
+      }
+
+      {/* Tags */}
+      {
+        post.tags && post.tags.length > 0 && (
+          <div class="mt-12 border-t border-slate-200 pt-8">
+            <div class="flex flex-wrap gap-3">
+              {post.tags.map((tag: string) => (
+                <span class="inline-block rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )
+      }
+
+      {/* Back Link */}
+      <div class="mt-12 border-t border-slate-200 pt-8">
+        <a href="/blog/" class="btn-primary inline-flex"> ← Back to Blog </a>
+      </div>
+    </div>
+  </article>
+</MainLayout>
