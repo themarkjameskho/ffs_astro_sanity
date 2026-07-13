@@ -5,7 +5,7 @@
 ## Current Repo Status
 
 - ✅ `astro.config.mjs` enables ISR (`expiration: 60`) and uses `SANITY_WEBHOOK_SECRET` as the bypass token.
-- ✅ Dynamic routes are pre-rendered (`export const prerender = true`) so ISR can cache and revalidate pages.
+- Historical note: older versions of this repo used pre-rendered dynamic routes. The current template uses `export const prerender = false` for dynamic CMS routes so Vercel renders on demand and caches via ISR.
 - ✅ `src/pages/api/revalidate.ts` is implemented.
 - ✅ `vercel.json` includes a no-cache header for `/api/revalidate`.
 - ✅ `.env.example` documents `SANITY_WEBHOOK_SECRET`.

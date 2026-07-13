@@ -1,7 +1,9 @@
+import { PREFERRED_SITE_ORIGIN } from '../lib/canonical';
+
 export const prerender = false;
 
 export async function GET() {
-  const siteUrl = 'https://{{VERCEL_PREVIEW_DOMAIN}}';
+  const siteUrl = PREFERRED_SITE_ORIGIN;
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>

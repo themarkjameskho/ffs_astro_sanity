@@ -1,5 +1,5 @@
 {
-  "name": "{{fork_source_slug}}-sanity",
+  "name": "ffs-astro-sanity-studio",
   "private": true,
   "type": "commonjs",
   "scripts": {

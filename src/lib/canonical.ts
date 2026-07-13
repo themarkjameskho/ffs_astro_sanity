@@ -1,4 +1,8 @@
-const PREFERRED_SITE_URL = '{{SITE_URL}}';
+const PREFERRED_SITE_URL = (
+  import.meta.env.SITE_URL ??
+  import.meta.env.PUBLIC_SITE_URL ??
+  'https://example.com'
+).replace(/\/+$/, '');
 const PREFERRED_SITE_ORIGIN = new URL(PREFERRED_SITE_URL).origin;
 const PREFERRED_HOSTNAME = new URL(PREFERRED_SITE_URL).hostname.toLowerCase();
 const INTERNAL_HOSTNAMES = new Set([PREFERRED_HOSTNAME, `www.${PREFERRED_HOSTNAME}`]);

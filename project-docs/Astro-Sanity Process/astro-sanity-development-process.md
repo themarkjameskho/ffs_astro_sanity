@@ -22,6 +22,7 @@
 ---
 
 ## How to Use This Playbook
+- This playbook is for new builds and rebuilds. AI agents and developers must use it together with `project-docs/LIFECYCLE-CHECKLIST.md`.
 - Follow the phases in order; do not advance until each phase’s **Exit Criteria** are met.
 - Each phase includes: people involved, required inputs, a beginner-friendly checklist, senior developer notes, automation hooks, and deliverables.
 - Every command assumes you are at the project root. Substitute `npm` with `pnpm` or `yarn` if preferred.

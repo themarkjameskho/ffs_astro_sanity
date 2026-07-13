@@ -215,7 +215,7 @@
 }
 
 /* =====================================================================
- * BBG ({{BRAND_NAME}}) v5-modern design system primitives
+ * FFS home-service v5-modern design system primitives
  *
  * These are the building blocks every redesigned section uses. They
  * intentionally live OUTSIDE the @layer components/utilities so their
@@ -591,4 +591,3 @@
     transform: none;
   }
 }
-

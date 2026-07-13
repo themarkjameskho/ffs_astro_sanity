@@ -6,7 +6,7 @@ import vercel from '@astrojs/vercel';
 import tailwindcss from '@tailwindcss/vite';
 
 
-const site = 'https://{{VERCEL_PREVIEW_DOMAIN}}';
+const site = process.env.SITE_URL ?? process.env.PUBLIC_SITE_URL ?? 'https://example.com';
 
 export default defineConfig({
   site,

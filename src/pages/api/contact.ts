@@ -19,7 +19,7 @@ const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/sit
 
 const headers = {
   'Content-Type': 'application/x-www-form-urlencoded',
-  'X-Forwarded-By': '{{brand_slug}}-contact-form'
+  'X-Forwarded-By': `${process.env.BRAND_SLUG ?? process.env.PUBLIC_BRAND_SLUG ?? 'ffs-pest-control'}-contact-form`
 } as const;
 
 /**

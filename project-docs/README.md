@@ -1,9 +1,10 @@
 # Project Documentation Index
 
 This folder is organized by status so new projects can reuse the right guidance quickly.
-Current deployment uses Vercel ISR (`expiration: 60` in `astro.config.mjs`); use the deployment reference docs only if you want on-demand revalidation via webhook.
+Current deployment uses Vercel on-demand rendering with ISR caching (`expiration: 60` in `astro.config.mjs`). Dynamic CMS routes use `prerender = false`; webhook revalidation is handled by `/api/revalidate`.
 
 ## 1) Start Here (Reusable Playbook)
+- `project-docs/LIFECYCLE-CHECKLIST.md` (mandatory AI/developer stage gates from requirements through launch)
 - `project-docs/Astro-Sanity Process/README.md` (full lifecycle playbook)
 - `project-docs/Astro-Sanity Process/astro-sanity-development-process.md` (phase-by-phase execution)
 - `project-docs/Astro-Sanity Process/forms-content-ops.md` (forms, content ops, deployment cadence)
@@ -21,7 +22,10 @@ Current deployment uses Vercel ISR (`expiration: 60` in `astro.config.mjs`); use
 
 ### Content Operations
 - `project-docs/active/content-ops/CONTENT_WRITER_GUIDE.md`
+- `project-docs/active/content-ops/WRITER_PROMPTS_AND_WORKFLOW.md`
 - `project-docs/active/content-ops/FORM_CREATION_GUIDE.md`
+- `project-docs/agents/mitch-writer-agent.md`
+- `project-docs/agents/charlie-editor-agent.md`
 
 ### Testing
 - `project-docs/active/testing/STAGING_TESTING_GUIDE.md`

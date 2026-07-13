@@ -2,7 +2,7 @@
 
 This directory contains the brand logo. The template ships with a placeholder
 PNG (`brand_logo.png`) and a placeholder wordmark SVG (`logo-wordmark.svg`)
-that both read `{{BRAND_NAME}}` — clearly identifiable as not-yet-replaced.
+that reads `FFS Pest Control` — clearly identifiable as a not-yet-replaced starter asset.
 
 When the client provides the real logo, save it here as `brand_logo.png`
 (or `.svg`) at minimum 480×96 for the header. The MainLayout import already

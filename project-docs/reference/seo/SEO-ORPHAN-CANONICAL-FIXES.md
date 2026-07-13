@@ -8,7 +8,7 @@ Problem: Pages created in Sanity were not guaranteed to be generated or discover
 
 Resolution:
 - `src/lib/queries/allPages.ts` fetches all Sanity page slugs and normalizes them.
-- `src/pages/[...slug].astro` uses `getStaticPaths()` to generate a static route for every slug and ensures the `home` page is always included.
+- Historical note: `src/pages/[...slug].astro` used to rely on `getStaticPaths()`. The current ISR model renders dynamic CMS routes on demand with `prerender = false`.
 - `astro.config.mjs` enables the `@astrojs/sitemap` integration so all built routes land in `sitemap.xml`.
 
 Outcome: every Sanity page gets a built route and is surfaced to crawlers via the sitemap, preventing orphaned pages.

@@ -1,6 +1,6 @@
 # WordPress → Astro + Sanity Migration Playbook
 
-This is the migration-specific companion to `astro-sanity-development-process.md`. Run this **before** Phase 6 (Astro Feature Development) of the main process — ideally during Phase 1 (Discovery), so the URL inventory and redirect map drive scope, and the parity audit drives the QA exit criteria. The checklists below are derived from the {{BRAND_ABBREV}} rebuild (May 2026), which was forked from an earlier {{FORK_SOURCE_PROJECT}} codebase and migrated from a WordPress + Cloudways stack to Astro + Sanity + Vercel.
+This is the migration-specific companion to `astro-sanity-development-process.md`. AI agents and developers must use it together with `project-docs/LIFECYCLE-CHECKLIST.md` for every WordPress → Astro + Sanity migration. Run this **before** Phase 6 (Astro Feature Development) of the main process — ideally during Phase 1 (Discovery), so the URL inventory and redirect map drive scope, and the parity audit drives the QA exit criteria. The checklists below are derived from the {{BRAND_ABBREV}} rebuild (May 2026), which was forked from an earlier {{FORK_SOURCE_PROJECT}} codebase and migrated from a WordPress + Cloudways stack to Astro + Sanity + Vercel.
 
 ## Why this exists as its own phase
 
@@ -158,6 +158,8 @@ A from-scratch Astro project follows the standard 11-phase playbook. A migration
 4. **Dry-run on staging dataset first.** Run with `--dataset=staging` or equivalent flag. Spot-check 5 posts in Sanity Studio. Verify body renders, images embed, slugs match.
 5. **Promote to production dataset** only after the staging spot-check passes. Record the run with `submittedAt` so you can roll back by deleting documents created on that date.
 6. **Re-render every imported post** through the Astro template at `localhost:4321/blog/<slug>/` and compare against the WordPress version. Fix any block types your portable-text serializer doesn't handle (we missed inline-image sizing on first pass — fix it in `src/lib/portableText.ts`).
+7. **Gate raw HTML fallbacks.** Run `npm run report:html-sections`. Treat `htmlSection` as a migration safety valve only: convert each block to a standard section unless it is legal copy or an approved third-party embed.
+8. **Check unique page copy.** Location/service pages need genuinely distinct intros and examples, not city-name-only rewrites.
 
 **Deliverables**
 - Idempotent import script under `scripts/`.
@@ -167,6 +169,7 @@ A from-scratch Astro project follows the standard 11-phase playbook. A migration
 - Sanity post count equals the WordPress baseline post count (or differs by an explicit, documented exclusion list).
 - Random-sample 5 blog URLs render in Astro with images intact and identical to WP.
 - Slugs are unchanged from WP (or every changed slug has a redirect in Phase E).
+- No unreviewed `htmlSection` blocks remain on launch pages.
 
 ---
 

@@ -5,7 +5,7 @@ export const ctaSection = defineType({
   name: 'ctaSection',
   title: 'CTA Section',
   type: 'object',
-  description: 'Full-width or boxed call-to-action band that mirrors {{BRAND_NAME}} branding presets.',
+  description: 'Full-width or boxed call-to-action band that mirrors the active brand presets.',
   icon: LuMegaphone,
   fieldsets: [
     {
@@ -61,7 +61,7 @@ export const ctaSection = defineType({
           name: 'label',
           title: 'Primary CTA Label',
           type: 'string',
-          description: 'Main button text (ex: "Illinois — {{PHONE_PRIMARY_FORMATTED}}").'
+          description: 'Main button text (ex: "Illinois — (555) 555-0100").'
         }),
         defineField({
           name: 'link',

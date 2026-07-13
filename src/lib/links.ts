@@ -1,5 +1,14 @@
 const INTERNAL_SCHEMES = /^(https?:|mailto:|tel:|sms:)/i;
-const INTERNAL_HOSTNAMES = new Set(['{{SITE_DOMAIN}}', 'www.{{SITE_DOMAIN}}']);
+const configuredHostname = (() => {
+  const siteUrl = import.meta.env.SITE_URL ?? import.meta.env.PUBLIC_SITE_URL;
+  if (!siteUrl) return 'example.com';
+  try {
+    return new URL(siteUrl).hostname.toLowerCase();
+  } catch {
+    return 'example.com';
+  }
+})();
+const INTERNAL_HOSTNAMES = new Set([configuredHostname, `www.${configuredHostname}`]);
 
 const splitLink = (href: string) => {
   const [pathAndQuery, hash] = href.split('#');

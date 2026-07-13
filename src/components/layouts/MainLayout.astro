@@ -2,11 +2,11 @@
 // Import critical CSS inline and global CSS
 import criticalCss from "../../styles/critical.css?inline";
 import "../../styles/global.css";
-import { Image } from "astro:assets";
-import {{brand_slug}}LogoAsset from "../../assets/{{brand_slug}}_logo.png";
+import logoWordmark from "../../assets/logo-wordmark.svg";
 import { buildCanonicalUrl, PREFERRED_SITE_ORIGIN } from "../../lib/canonical";
 import { fetchMenuLinksByPageType } from "../../lib/queries/menuLinks";
 import { fetchAllPageSlugs } from "../../lib/queries/allPages";
+import { siteProfile } from "../../data/siteProfile";
 
 interface Props {
   pageTitle?: string;
@@ -20,7 +20,7 @@ interface Props {
 }
 
 const {
-  pageTitle = "{{BRAND_NAME}}",
+  pageTitle = siteProfile.brandName,
   description = "Get Your Sleep Back!",
   heroPreloadUrl = "",
   heroPreloadSrcSet = "",
@@ -29,7 +29,48 @@ const {
   heroPreloadSizesMobile = "",
   canonicalUrl,
 } = Astro.props as Props;
-const brandLogoPath = "/images/bed-bugs-be-gone-now-logo.png";
+const brandName = siteProfile.brandName;
+const brandAbbrev = siteProfile.brandAbbrev;
+const siteUrl = siteProfile.siteUrl;
+const logoSrc = typeof logoWordmark === "string" ? logoWordmark : logoWordmark.src;
+const absoluteLogoUrl = new URL(logoSrc, PREFERRED_SITE_ORIGIN).toString();
+const primaryPhoneLabel = siteProfile.primaryPhoneFormatted;
+const primaryPhoneHref = `tel:${siteProfile.primaryPhoneE164NoPlus}`;
+const secondaryPhoneLabel = siteProfile.secondaryPhoneFormatted;
+const secondaryPhoneHref = `tel:${siteProfile.secondaryPhoneE164NoPlus}`;
+const gaMeasurementId = siteProfile.ga4MeasurementId;
+const callRailCompanyId = siteProfile.callRailCompanyId;
+const callRailSwapKey = siteProfile.callRailSwapKey;
+const hasCallRail = Boolean(callRailCompanyId && callRailSwapKey);
+const gaScript = gaMeasurementId
+  ? `
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', ${JSON.stringify(gaMeasurementId)});
+
+      var __gaLoaded = false;
+      function __loadGa() {
+        if (__gaLoaded) return;
+        __gaLoaded = true;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=' + ${JSON.stringify(gaMeasurementId)};
+        document.head.appendChild(s);
+        ['scroll','touchstart','mousemove','keydown'].forEach(function(ev){
+          window.removeEventListener(ev, __loadGa, { passive: true });
+        });
+      }
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(__loadGa, { timeout: 3000 });
+      } else {
+        setTimeout(__loadGa, 3000);
+      }
+      ['scroll','touchstart','mousemove','keydown'].forEach(function(ev){
+        window.addEventListener(ev, __loadGa, { once: true, passive: true });
+      });
+    `
+  : "";
 
 const canonicalHref = buildCanonicalUrl({
   pathname: Astro.url.pathname,
@@ -207,10 +248,8 @@ const cmsServiceAreaChildren = cmsServiceAreaPages.filter((item) => item.href !=
 const validServiceAreas = toValidDropdownLinks(cmsServiceAreaChildren, "service-area");
 const serviceAreas = validServiceAreas.length > 0 ? validServiceAreas : FALLBACK_SERVICE_AREAS;
 
-// Featured cities for the header dropdown — matches the live {{BRAND_ABBREV}} site's
-// nav so users see a clean, scannable list instead of all ~30 SEO
-// landing pages. The full list still lives at /service-area/ and is
-// reachable via the "View all locations" entry appended below.
+// Featured cities for the header dropdown. The full list still lives at
+// /service-area/ and is reachable via the "View all locations" entry appended below.
 const FEATURED_NAV_SERVICE_AREA_SLUGS = new Set([
   "arlington-heights-il",
   "chicago-il",
@@ -331,49 +370,48 @@ const pathname = Astro.url?.pathname ?? "/";
 const isHomePage = pathname === "/" || pathname === "";
 
 // Homepage schema: full @graph with LocalBusiness, Services, OfferCatalog,
-// WebSite, WebPage, BreadcrumbList, and FAQPage. Mirrors the structure
-// served on the legacy WordPress site so Google sees a continuous
-// schema graph through the DNS cutover.
+// WebSite, WebPage, BreadcrumbList, and FAQPage. This stays home-service
+// oriented because this template is intended for FFS pest-control builds.
 const homepageSchema = {
   "@context": "https://schema.org",
   "@graph": [
     {
       "@type": ["LocalBusiness", "HomeAndConstructionBusiness"],
-      "@id": "{{SITE_URL}}/#localbusiness",
-      name: "{{BRAND_NAME}}",
-      alternateName: "{{BRAND_ABBREV}}",
-      url: "{{SITE_URL}}/",
+      "@id": `${siteUrl}/#localbusiness`,
+      name: brandName,
+      alternateName: brandAbbrev,
+      url: `${siteUrl}/`,
       logo: {
         "@type": "ImageObject",
-        "@id": "{{SITE_URL}}/#logo",
-        url: "{{SITE_URL}}/wp-content/uploads/2025/06/cropped-{{BRAND_ABBREV}}-logo.png",
-        contentUrl: "{{SITE_URL}}/wp-content/uploads/2025/06/cropped-{{BRAND_ABBREV}}-logo.png"
+        "@id": `${siteUrl}/#logo`,
+        url: absoluteLogoUrl,
+        contentUrl: absoluteLogoUrl
       },
-      image: { "@id": "{{SITE_URL}}/#logo" },
-      description: "{{BRAND_NAME}} provides professional bed bug extermination and bed bug treatment services, including 1-day heat treatment, Aprehend bio-pesticide treatment, and conventional chemical treatment.",
+      image: { "@id": `${siteUrl}/#logo` },
+      description: `${brandName} provides professional bed bug extermination and pest control services for local home-service customers.`,
       slogan: "Sleep Tight, We Fight Bed Bugs Right!",
       category: "Pest control service",
       additionalType: "https://www.productontology.org/id/Pest_control",
       naics: "561710",
-      telephone: "{{PHONE_MAIN_DASHED}}",
+      telephone: siteProfile.primaryPhoneDashed,
       contactPoint: [
         {
           "@type": "ContactPoint",
-          telephone: "{{PHONE_MAIN_DASHED}}",
+          telephone: siteProfile.primaryPhoneDashed,
           contactType: "customer service",
           areaServed: "US",
           availableLanguage: "English"
         },
         {
           "@type": "ContactPoint",
-          telephone: "{{PHONE_PRIMARY_DASHED}}",
+          telephone: siteProfile.primaryPhoneDashed,
           contactType: "Illinois service line",
           areaServed: { "@type": "State", name: "Illinois" },
           availableLanguage: "English"
         },
         {
           "@type": "ContactPoint",
-          telephone: "{{PHONE_SECONDARY_DASHED}}",
+          telephone: siteProfile.secondaryPhoneDashed,
           contactType: "Wisconsin service line",
           areaServed: { "@type": "State", name: "Wisconsin" },
           availableLanguage: "English"
@@ -381,18 +419,18 @@ const homepageSchema = {
       ],
       address: {
         "@type": "PostalAddress",
-        streetAddress: "{{NAP_STREET_ADDRESS}}",
-        addressLocality: "{{NAP_CITY}}",
-        addressRegion: "IL",
-        postalCode: "{{NAP_ZIP}}",
+        streetAddress: siteProfile.streetAddress,
+        addressLocality: siteProfile.city,
+        addressRegion: siteProfile.region,
+        postalCode: siteProfile.zip,
         addressCountry: "US"
       },
       geo: {
         "@type": "GeoCoordinates",
-        latitude: {{NAP_LATITUDE}},
-        longitude: {{NAP_LONGITUDE}}
+        latitude: siteProfile.latitude,
+        longitude: siteProfile.longitude
       },
-      hasMap: "https://www.google.com/maps/search/?api=1&query={{NAP_LATITUDE}},{{NAP_LONGITUDE}}",
+      hasMap: `https://www.google.com/maps/search/?api=1&query=${siteProfile.latitude},${siteProfile.longitude}`,
       openingHours: ["Mo-Fr 08:00-18:00", "Sa 08:00-16:00"],
       openingHoursSpecification: [
         {
@@ -434,135 +472,135 @@ const homepageSchema = {
         "bed bug removal",
         "pest control"
       ],
-      hasOfferCatalog: { "@id": "{{SITE_URL}}/#bed-bug-treatment-services" },
+      hasOfferCatalog: { "@id": `${siteUrl}/#bed-bug-treatment-services` },
       makesOffer: [
-        { "@id": "{{SITE_URL}}/#offer-heat-treatment" },
-        { "@id": "{{SITE_URL}}/#offer-aprehend-treatment" },
-        { "@id": "{{SITE_URL}}/#offer-conventional-treatment" }
+        { "@id": `${siteUrl}/#offer-heat-treatment` },
+        { "@id": `${siteUrl}/#offer-aprehend-treatment` },
+        { "@id": `${siteUrl}/#offer-conventional-treatment` }
       ],
-      mainEntityOfPage: { "@id": "{{SITE_URL}}/#webpage" }
+      mainEntityOfPage: { "@id": `${siteUrl}/#webpage` }
     },
     {
       "@type": "OfferCatalog",
-      "@id": "{{SITE_URL}}/#bed-bug-treatment-services",
+      "@id": `${siteUrl}/#bed-bug-treatment-services`,
       name: "Bed Bug Treatment Services",
       itemListElement: [
-        { "@id": "{{SITE_URL}}/#offer-heat-treatment" },
-        { "@id": "{{SITE_URL}}/#offer-aprehend-treatment" },
-        { "@id": "{{SITE_URL}}/#offer-conventional-treatment" }
+        { "@id": `${siteUrl}/#offer-heat-treatment` },
+        { "@id": `${siteUrl}/#offer-aprehend-treatment` },
+        { "@id": `${siteUrl}/#offer-conventional-treatment` }
       ]
     },
     {
       "@type": "Offer",
-      "@id": "{{SITE_URL}}/#offer-heat-treatment",
+      "@id": `${siteUrl}/#offer-heat-treatment`,
       name: "1-Day Bed Bug Heat Treatment",
-      url: "{{SITE_URL}}/bed-bug-treatment/heat-extermination/",
-      offeredBy: { "@id": "{{SITE_URL}}/#localbusiness" },
-      itemOffered: { "@id": "{{SITE_URL}}/#service-heat-treatment" }
+      url: `${siteUrl}/bed-bug-treatment/heat-extermination/`,
+      offeredBy: { "@id": `${siteUrl}/#localbusiness` },
+      itemOffered: { "@id": `${siteUrl}/#service-heat-treatment` }
     },
     {
       "@type": "Offer",
-      "@id": "{{SITE_URL}}/#offer-aprehend-treatment",
+      "@id": `${siteUrl}/#offer-aprehend-treatment`,
       name: "Aprehend Bio-Pesticide Bed Bug Treatment",
-      url: "{{SITE_URL}}/bed-bug-treatment/aprehend-extermination/",
-      offeredBy: { "@id": "{{SITE_URL}}/#localbusiness" },
-      itemOffered: { "@id": "{{SITE_URL}}/#service-aprehend-treatment" }
+      url: `${siteUrl}/bed-bug-treatment/aprehend-extermination/`,
+      offeredBy: { "@id": `${siteUrl}/#localbusiness` },
+      itemOffered: { "@id": `${siteUrl}/#service-aprehend-treatment` }
     },
     {
       "@type": "Offer",
-      "@id": "{{SITE_URL}}/#offer-conventional-treatment",
+      "@id": `${siteUrl}/#offer-conventional-treatment`,
       name: "Conventional Chemical Bed Bug Treatment",
-      url: "{{SITE_URL}}/bed-bug-treatment/conventional-extermination/",
-      offeredBy: { "@id": "{{SITE_URL}}/#localbusiness" },
-      itemOffered: { "@id": "{{SITE_URL}}/#service-conventional-treatment" }
+      url: `${siteUrl}/bed-bug-treatment/conventional-extermination/`,
+      offeredBy: { "@id": `${siteUrl}/#localbusiness` },
+      itemOffered: { "@id": `${siteUrl}/#service-conventional-treatment` }
     },
     {
       "@type": "Service",
-      "@id": "{{SITE_URL}}/#service-heat-treatment",
+      "@id": `${siteUrl}/#service-heat-treatment`,
       name: "1-Day Bed Bug Heat Treatment",
       serviceType: "Bed bug heat treatment",
       category: "Bed bug extermination",
-      url: "{{SITE_URL}}/bed-bug-treatment/heat-extermination/",
-      provider: { "@id": "{{SITE_URL}}/#localbusiness" },
+      url: `${siteUrl}/bed-bug-treatment/heat-extermination/`,
+      provider: { "@id": `${siteUrl}/#localbusiness` },
       description: "A one-day heat treatment for bed bug infestations that uses specialized heating systems to eliminate bed bugs across life stages, including eggs, nymphs, and adults."
     },
     {
       "@type": "Service",
-      "@id": "{{SITE_URL}}/#service-aprehend-treatment",
+      "@id": `${siteUrl}/#service-aprehend-treatment`,
       name: "Aprehend Bio-Pesticide Bed Bug Treatment",
       serviceType: "Aprehend bed bug treatment",
       category: "Bed bug extermination",
-      url: "{{SITE_URL}}/bed-bug-treatment/aprehend-extermination/",
-      provider: { "@id": "{{SITE_URL}}/#localbusiness" },
+      url: `${siteUrl}/bed-bug-treatment/aprehend-extermination/`,
+      provider: { "@id": `${siteUrl}/#localbusiness` },
       description: "A professional Aprehend bio-pesticide treatment that targets bed bugs and helps provide long-lasting protection against reinfestation."
     },
     {
       "@type": "Service",
-      "@id": "{{SITE_URL}}/#service-conventional-treatment",
+      "@id": `${siteUrl}/#service-conventional-treatment`,
       name: "Conventional Chemical Bed Bug Treatment",
       serviceType: "Conventional chemical bed bug treatment",
       category: "Bed bug extermination",
-      url: "{{SITE_URL}}/bed-bug-treatment/conventional-extermination/",
-      provider: { "@id": "{{SITE_URL}}/#localbusiness" },
+      url: `${siteUrl}/bed-bug-treatment/conventional-extermination/`,
+      provider: { "@id": `${siteUrl}/#localbusiness` },
       description: "A conventional chemical treatment option using selected insecticides to target and eliminate bed bugs at different infestation levels."
     },
     {
       "@type": "WebSite",
-      "@id": "{{SITE_URL}}/#website",
-      url: "{{SITE_URL}}/",
-      name: "{{BRAND_NAME}}",
-      publisher: { "@id": "{{SITE_URL}}/#localbusiness" },
+      "@id": `${siteUrl}/#website`,
+      url: `${siteUrl}/`,
+      name: brandName,
+      publisher: { "@id": `${siteUrl}/#localbusiness` },
       inLanguage: "en-US"
     },
     {
       "@type": "WebPage",
-      "@id": "{{SITE_URL}}/#webpage",
-      url: "{{SITE_URL}}/",
-      name: "{{BRAND_NAME}} | 1-Day Safe and Effective Treatments",
-      description: "Home page for {{BRAND_NAME}}, a bed bug extermination company offering heat treatment, Aprehend bio-pesticide treatment, and conventional chemical treatment.",
-      isPartOf: { "@id": "{{SITE_URL}}/#website" },
-      about: { "@id": "{{SITE_URL}}/#localbusiness" },
-      primaryImageOfPage: { "@id": "{{SITE_URL}}/#logo" },
-      hasPart: [{ "@id": "{{SITE_URL}}/#faq" }],
+      "@id": `${siteUrl}/#webpage`,
+      url: `${siteUrl}/`,
+      name: `${brandName} | 1-Day Safe and Effective Treatments`,
+      description: `Home page for ${brandName}, a pest-control company offering bed bug and home-service treatments.`,
+      isPartOf: { "@id": `${siteUrl}/#website` },
+      about: { "@id": `${siteUrl}/#localbusiness` },
+      primaryImageOfPage: { "@id": `${siteUrl}/#logo` },
+      hasPart: [{ "@id": `${siteUrl}/#faq` }],
       mentions: [
-        { "@id": "{{SITE_URL}}/#service-heat-treatment" },
-        { "@id": "{{SITE_URL}}/#service-aprehend-treatment" },
-        { "@id": "{{SITE_URL}}/#service-conventional-treatment" }
+        { "@id": `${siteUrl}/#service-heat-treatment` },
+        { "@id": `${siteUrl}/#service-aprehend-treatment` },
+        { "@id": `${siteUrl}/#service-conventional-treatment` }
       ],
-      breadcrumb: { "@id": "{{SITE_URL}}/#breadcrumb" },
+      breadcrumb: { "@id": `${siteUrl}/#breadcrumb` },
       inLanguage: "en-US"
     },
     {
       "@type": "BreadcrumbList",
-      "@id": "{{SITE_URL}}/#breadcrumb",
+      "@id": `${siteUrl}/#breadcrumb`,
       itemListElement: [
         {
           "@type": "ListItem",
           position: 1,
           name: "Home",
-          item: "{{SITE_URL}}/"
+          item: `${siteUrl}/`
         }
       ]
     },
     {
       "@type": "FAQPage",
-      "@id": "{{SITE_URL}}/#faq",
-      url: "{{SITE_URL}}/#faq",
-      name: "{{BRAND_NAME}} FAQs",
-      isPartOf: { "@id": "{{SITE_URL}}/#webpage" },
-      about: { "@id": "{{SITE_URL}}/#localbusiness" },
+      "@id": `${siteUrl}/#faq`,
+      url: `${siteUrl}/#faq`,
+      name: `${brandName} FAQs`,
+      isPartOf: { "@id": `${siteUrl}/#webpage` },
+      about: { "@id": `${siteUrl}/#localbusiness` },
       mainEntity: [
         {
           "@type": "Question",
           name: "What types of treatments for bed bugs do you offer?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "{{BRAND_NAME}} offers heat treatment, Aprehend extermination, and conventional chemical treatment for bed bugs. Heat treatment is a one-day option, Aprehend provides long-lasting bio-pesticide protection, and conventional chemical treatment uses EPA-approved insecticides to target bed bugs at all life stages."
+            text: `${brandName} offers heat treatment, Aprehend extermination, and conventional chemical treatment for bed bugs.`
           }
         },
         {
           "@type": "Question",
-          name: "How effective is the 1-Day Heat Treatment by {{BRAND_ABBREV}}?",
+          name: `How effective is the 1-Day Heat Treatment by ${brandAbbrev}?`,
           acceptedAnswer: {
             "@type": "Answer",
             text: "The 1-Day Heat Treatment is designed to eradicate bed bugs across all stages of life with a single treatment by heating infested areas to temperatures that bed bugs cannot survive, providing quick and thorough extermination."
@@ -573,7 +611,7 @@ const homepageSchema = {
           name: "Will I need to throw away my furniture after a bed bug infestation?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "No. {{BRAND_NAME}} treatments, especially heat treatment, are designed to penetrate furniture and household items to kill bed bugs without damaging belongings, helping customers avoid unnecessary replacement costs."
+            text: `No. ${brandName} treatments, especially heat treatment, are designed to penetrate furniture and household items to kill bed bugs without damaging belongings, helping customers avoid unnecessary replacement costs.`
           }
         },
         {
@@ -581,7 +619,7 @@ const homepageSchema = {
           name: "Can you guarantee privacy during the bed bug extermination process?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. {{BRAND_NAME}} emphasizes discretion and privacy, including unmarked service trucks and technicians trained to perform treatments with confidentiality and respect for the property."
+            text: `Yes. ${brandName} emphasizes discretion and privacy, including unmarked service trucks and technicians trained to perform treatments with confidentiality and respect for the property.`
           }
         },
         {
@@ -604,12 +642,12 @@ const homepageSchema = {
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": ["LocalBusiness", "HomeAndConstructionBusiness", "PestControl"],
-  "@id": "{{SITE_URL}}/#localbusiness",
-  name: "{{BRAND_NAME}}",
-  url: "{{SITE_URL}}/",
-  image: new URL(brandLogoPath, PREFERRED_SITE_ORIGIN),
-  logo: new URL(brandLogoPath, PREFERRED_SITE_ORIGIN),
-  telephone: "{{PHONE_MAIN_DASHED}}",
+  "@id": `${siteUrl}/#localbusiness`,
+  name: brandName,
+  url: `${siteUrl}/`,
+  image: absoluteLogoUrl,
+  logo: absoluteLogoUrl,
+  telephone: siteProfile.primaryPhoneDashed,
   priceRange: "Varies",
   areaServed: [
     { "@type": "City", name: "Chicago" },
@@ -618,14 +656,14 @@ const organizationSchema = {
   contactPoint: [
     {
       "@type": "ContactPoint",
-      telephone: "{{PHONE_PRIMARY_DASHED}}",
+      telephone: siteProfile.primaryPhoneDashed,
       contactType: "Illinois service line",
       areaServed: "US",
       availableLanguage: "en",
     },
     {
       "@type": "ContactPoint",
-      telephone: "{{PHONE_SECONDARY_DASHED}}",
+      telephone: siteProfile.secondaryPhoneDashed,
       contactType: "Wisconsin service line",
       areaServed: "US",
       availableLanguage: "en",
@@ -642,52 +680,7 @@ const organizationSchema = {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
 
-    {/*
-      Google Analytics 4 ({{BRAND_ABBREV}} — {{GA4_MEASUREMENT_ID}}).
-
-      Note: the previous tag ({{LEGACY_GA_ID_DO_NOT_USE}}) was inherited from the {{FORK_SOURCE_PROJECT}}
-      fork and was sending {{BRAND_ABBREV}} traffic into {{FORK_SOURCE_PROJECT}}'s GA property. Do
-      NOT swap this back to {{LEGACY_GA_ID_DO_NOT_USE}} for any reason — that's {{FORK_SOURCE_PROJECT}}.
-
-      Performance: GA gtag.js is a notorious TBT contributor (~150-220ms
-      of main-thread blocking on cold load + forced reflow inside gtag's
-      own anchor handler). To preserve TBT we defer it until either:
-        • requestIdleCallback (browsers that support it) — fires when the
-          main thread is genuinely idle, never during the LCP-critical
-          render path.
-        • Otherwise a 3s setTimeout fallback.
-        • Plus first user interaction (whichever comes first) so we don't
-          miss the session-start beacon when the user immediately scrolls.
-      No measurement loss in practice: GA's session_start event still
-      fires on the first hit, just shifted past the LCP window.
-    */}
-    <script is:inline>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', '{{GA4_MEASUREMENT_ID}}');
-
-      var __gaLoaded = false;
-      function __loadGa() {
-        if (__gaLoaded) return;
-        __gaLoaded = true;
-        var s = document.createElement('script');
-        s.async = true;
-        s.src = 'https://www.googletagmanager.com/gtag/js?id={{GA4_MEASUREMENT_ID}}';
-        document.head.appendChild(s);
-        ['scroll','touchstart','mousemove','keydown'].forEach(function(ev){
-          window.removeEventListener(ev, __loadGa, { passive: true });
-        });
-      }
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(__loadGa, { timeout: 3000 });
-      } else {
-        setTimeout(__loadGa, 3000);
-      }
-      ['scroll','touchstart','mousemove','keydown'].forEach(function(ev){
-        window.addEventListener(ev, __loadGa, { once: true, passive: true });
-      });
-    </script>
+    {gaScript && <script is:inline set:html={gaScript}></script>}
 
     {/*
       CallRail dynamic-number swap snippet is NOT placed here.
@@ -765,12 +758,7 @@ const organizationSchema = {
       )
     }
 
-    <!-- Favicon. Both /favicon.png and /{{brand_slug}}-icon.png are the same {{BRAND_ABBREV}}
-         bedbug brand mark (user replaced the old "bed-looking" file with
-         the new artwork at the same path). The ?v= cache-bust forces
-         browsers + Cloudflare to drop the previously cached image even
-         when the URL is otherwise identical. Bump the version number
-         here any time the favicon artwork changes. -->
+    <!-- Favicon. Bump the version number any time the favicon artwork changes. -->
     <link rel="icon" type="image/png" sizes="any" href="/favicon.png?v=3" />
     <link rel="apple-touch-icon" href="/favicon.png?v=3" />
 
@@ -867,42 +855,16 @@ const organizationSchema = {
 
     <header id="site-nav" class="bbg-mast">
       <div class="bbg-mast-row">
-        <a href="/" class="bbg-mast-brand" aria-label="{{BRAND_NAME}} home">
-          {/*
-            Header logo via Astro Image so the build outputs a properly-sized
-            WebP at 280x100 instead of serving the 486x308 source PNG.
-            The original /images/bed-bugs-be-gone-now-logo.png PNG kept
-            getting flagged by PageSpeed (28 KiB wasted) because it's
-            many times larger than the displayed dimensions. Astro Image
-            handles format negotiation + responsive sizing + permanent
-            cache-busting via content hash automatically.
-          */}
-          {/*
-            Width/height tuned to the actual rendered size in DevTools
-            (166×105 on mobile). Serving at 220 gives ~1.3x retina headroom
-            without the Lighthouse "image is larger than it needs to be"
-            flag. Quality dropped 70→62 (still visually crisp on a logo
-            with flat color regions, saves ~7-9 KiB).
-          */}
-          {/*
-            Mobile renders the logo at ~95×60, desktop at ~127×80.
-            Single-width 220 was too big for mobile (Lighthouse flagged
-            16 KiB savings). widths={[140, 220]} + sizes makes the browser
-            pick the small variant on mobile and the larger one on desktop.
-          */}
-          <Image
-            src={{{brand_slug}}LogoAsset}
-            alt="{{BRAND_NAME}} logo"
+        <a href="/" class="bbg-mast-brand" aria-label={`${brandName} home`}>
+          <img
+            src={logoSrc}
+            alt={`${brandName} logo`}
             class="bbg-mast-brand-img"
             loading="eager"
-            widths={[140, 220]}
-            sizes="(max-width: 768px) 140px, 220px"
             width={220}
             height={80}
             fetchpriority="high"
             decoding="async"
-            format="webp"
-            quality={62}
           />
         </a>
 
@@ -958,11 +920,11 @@ const organizationSchema = {
         <div class="bbg-mast-end">
           {/* Two stacked phone CTAs — equal weight, no outline, white text. */}
           <div class="bbg-mast-phones">
-            <a href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}" class="btn-primary bbg-mast-phone-btn">
-              Illinois {{PHONE_PRIMARY_FORMATTED}}
+            <a href={primaryPhoneHref} class="btn-primary bbg-mast-phone-btn">
+              Illinois {primaryPhoneLabel}
             </a>
-            <a href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}" class="btn-secondary bbg-mast-phone-btn">
-              Wisconsin {{PHONE_SECONDARY_FORMATTED}}
+            <a href={secondaryPhoneHref} class="btn-secondary bbg-mast-phone-btn">
+              Wisconsin {secondaryPhoneLabel}
             </a>
           </div>
 
@@ -1391,18 +1353,16 @@ const organizationSchema = {
     >
       <a
         href="/"
-        aria-label="{{BRAND_NAME}} home"
+        aria-label={`${brandName} home`}
         class="bbg-sticky-pill-brand"
       >
-        <Image
-          src={{{brand_slug}}LogoAsset}
-          alt="{{BRAND_NAME}} logo"
+        <img
+          src={logoSrc}
+          alt={`${brandName} logo`}
           class="bbg-sticky-pill-brand-img"
           width={72}
           height={72}
           loading="lazy"
-          format="webp"
-          quality={70}
           decoding="async"
         />
       </a>
@@ -1429,26 +1389,15 @@ const organizationSchema = {
         data-mobile-menu-panel
       >
         <div class="bbg-drawer-head">
-          <a href="/" class="bbg-drawer-brand" aria-label="{{BRAND_NAME}} home">
-            {/*
-              Drawer logo displays at 122×77 per DevTools. Serving at 160
-              gives ~1.3x retina headroom — Lighthouse stops flagging
-              "image larger than displayed" while still rendering crisp.
-            */}
-            {/*
-              Drawer logo actually displays at ~70×44 per latest
-              Lighthouse run. 110 wide gives ~1.5x retina headroom.
-            */}
-            <Image
-              src={{{brand_slug}}LogoAsset}
-              alt="{{BRAND_NAME}} logo"
+          <a href="/" class="bbg-drawer-brand" aria-label={`${brandName} home`}>
+            <img
+              src={logoSrc}
+              alt={`${brandName} logo`}
               class="bbg-drawer-brand-img"
               width={110}
               height={42}
               loading="lazy"
               decoding="async"
-              format="webp"
-              quality={62}
             />
           </a>
           <button
@@ -1512,11 +1461,11 @@ const organizationSchema = {
           <p class="bbg-drawer-foot-copy">
             We respond in under an hour for discreet same-day inspections.
           </p>
-          <a href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}" class="btn-primary bbg-drawer-cta">
-            Call Illinois · {{PHONE_PRIMARY_FORMATTED}}
+          <a href={primaryPhoneHref} class="btn-primary bbg-drawer-cta">
+            Call Illinois · {primaryPhoneLabel}
           </a>
-          <a href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}" class="btn-ghost bbg-drawer-cta">
-            Call Wisconsin · {{PHONE_SECONDARY_FORMATTED}}
+          <a href={secondaryPhoneHref} class="btn-ghost bbg-drawer-cta">
+            Call Wisconsin · {secondaryPhoneLabel}
           </a>
         </div>
       </div>
@@ -1828,22 +1777,22 @@ const organizationSchema = {
             </a>
             <p class="bbg-foot-cta-or" aria-hidden="true">or call us</p>
             <div class="bbg-foot-cta-phones">
-              <a href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}" class="btn-ghost bbg-foot-cta-phone">
+              <a href={primaryPhoneHref} class="btn-ghost bbg-foot-cta-phone">
                 <svg viewBox="0 0 24 24" class="bbg-foot-cta-phone-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
                 <span class="bbg-foot-cta-phone-label">
                   <span class="bbg-foot-cta-phone-state">Illinois</span>
-                  <span class="bbg-foot-cta-phone-num">{{PHONE_PRIMARY_FORMATTED}}</span>
+                  <span class="bbg-foot-cta-phone-num">{primaryPhoneLabel}</span>
                 </span>
               </a>
-              <a href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}" class="btn-ghost bbg-foot-cta-phone">
+              <a href={secondaryPhoneHref} class="btn-ghost bbg-foot-cta-phone">
                 <svg viewBox="0 0 24 24" class="bbg-foot-cta-phone-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
                 <span class="bbg-foot-cta-phone-label">
                   <span class="bbg-foot-cta-phone-state">Wisconsin</span>
-                  <span class="bbg-foot-cta-phone-num">{{PHONE_SECONDARY_FORMATTED}}</span>
+                  <span class="bbg-foot-cta-phone-num">{secondaryPhoneLabel}</span>
                 </span>
               </a>
             </div>
@@ -1864,30 +1813,28 @@ const organizationSchema = {
               Footer logo displays around 180×60 on mobile, 220×73 on
               desktop. 240 gives 1.3x retina with no waste.
             */}
-            <Image
-              src={{{brand_slug}}LogoAsset}
-              alt="{{BRAND_NAME}} logo"
+            <img
+              src={logoSrc}
+              alt={`${brandName} logo`}
               class="bbg-foot-brand-img"
               width={240}
               height={80}
               loading="lazy"
               decoding="async"
-              format="webp"
-              quality={62}
             />
-            <p class="bbg-foot-nap-name">{{BRAND_NAME}}</p>
+            <p class="bbg-foot-nap-name">{brandName}</p>
             <address class="bbg-foot-nap-address">
-              {{NAP_STREET_ADDRESS}}<br />
-              {{NAP_CITY}}, IL {{NAP_ZIP}}
+              {siteProfile.streetAddress}<br />
+              {siteProfile.city}, {siteProfile.region} {siteProfile.zip}
             </address>
             <p class="bbg-foot-nap-contact-label">Contact Us:</p>
             <ul class="bbg-foot-nap-phones">
               <li>
-                <a href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}">{{PHONE_PRIMARY_FORMATTED}}</a>
+                <a href={primaryPhoneHref}>{primaryPhoneLabel}</a>
                 <span class="bbg-foot-nap-state"> — Illinois</span>
               </li>
               <li>
-                <a href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}">{{PHONE_SECONDARY_FORMATTED}}</a>
+                <a href={secondaryPhoneHref}>{secondaryPhoneLabel}</a>
                 <span class="bbg-foot-nap-state"> — Wisconsin</span>
               </li>
             </ul>
@@ -1929,7 +1876,7 @@ const organizationSchema = {
             <div class="bbg-foot-map">
               <iframe
                 src="https://www.google.com/maps?q=Chicago%2C+IL&output=embed"
-                title="{{BRAND_NAME}} service area on Google Maps"
+                title={`${brandName} service area on Google Maps`}
                 allowfullscreen=""
                 loading="lazy"
                 referrerpolicy="no-referrer-when-downgrade"
@@ -1941,7 +1888,7 @@ const organizationSchema = {
 
       <div class="bbg-foot-legal">
         <div class="bbg-foot-legal-inner">
-          <span>© {new Date().getFullYear()} {{BRAND_NAME}}. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} {brandName}. All rights reserved.</span>
           <span class="bbg-foot-legal-links">
             <a href="/privacy-policy/">Privacy Policy</a>
             <span aria-hidden="true">·</span>
@@ -2409,29 +2356,29 @@ const organizationSchema = {
       aria-label="Call our dispatch lines"
     >
       <a
-        href="tel:{{PHONE_PRIMARY_E164_NOPLUS}}"
+        href={primaryPhoneHref}
         class="btn-primary bbg-mobile-call-btn"
-        aria-label="Call Illinois {{PHONE_PRIMARY_FORMATTED}}"
+        aria-label={`Call Illinois ${primaryPhoneLabel}`}
       >
         <svg viewBox="0 0 24 24" class="bbg-mobile-call-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
         </svg>
         <span class="bbg-mobile-call-label">
           <span class="bbg-mobile-call-state">Illinois</span>
-          <span class="bbg-mobile-call-num">{{PHONE_PRIMARY_FORMATTED}}</span>
+          <span class="bbg-mobile-call-num">{primaryPhoneLabel}</span>
         </span>
       </a>
       <a
-        href="tel:{{PHONE_SECONDARY_E164_NOPLUS}}"
+        href={secondaryPhoneHref}
         class="btn-primary bbg-mobile-call-btn"
-        aria-label="Call Wisconsin {{PHONE_SECONDARY_FORMATTED}}"
+        aria-label={`Call Wisconsin ${secondaryPhoneLabel}`}
       >
         <svg viewBox="0 0 24 24" class="bbg-mobile-call-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
         </svg>
         <span class="bbg-mobile-call-label">
           <span class="bbg-mobile-call-state">Wisconsin</span>
-          <span class="bbg-mobile-call-num">{{PHONE_SECONDARY_FORMATTED}}</span>
+          <span class="bbg-mobile-call-num">{secondaryPhoneLabel}</span>
         </span>
       </a>
     </div>
@@ -2729,28 +2676,11 @@ const organizationSchema = {
       }
     </style>
 
-    {/*
-      CallRail dynamic-number swap ({{BRAND_ABBREV}} — company {{CALLRAIL_COMPANY_ID}}).
-
-      Per CallRail's own placement guidance (Cory confirmed May 2026):
-      this snippet must live between the body tags, NOT in <head>. The
-      account-side verifier "never returns a result" when the script is
-      head-mounted, even though it loads correctly.
-
-      Loaded eagerly (no defer) at the end of <body> so it runs
-      synchronously right after the DOM finishes parsing — CallRail's
-      number-swap pass needs the tel: links present in the DOM, which
-      they are by the time we reach this point. This is the spot
-      equivalent to "put the script tag right before </body>".
-    */}
-    {/* IMPORTANT: is:inline is required. Without it, Astro processes the
-        <script> tag as a build-time module — since there's no body to
-        bundle (just an external src), Astro silently strips the tag from
-        the output HTML. That's exactly what happened on the first deploy
-        of this revert: PageSpeed showed cdn.callreports.com loading from
-        the <head> preconnect but the actual script never appeared. The
-        Turnstile script tag below the form has is:inline for the same
-        reason. Do not remove it. */}
-    <script is:inline src="https://cdn.callreports.com/companies/{{CALLRAIL_COMPANY_ID}}/{{CALLRAIL_SWAP_KEY}}/12/swap.js"></script>
+    {hasCallRail && (
+      <script
+        is:inline
+        src={`https://cdn.callreports.com/companies/${callRailCompanyId}/${callRailSwapKey}/12/swap.js`}
+      ></script>
+    )}
   </body>
 </html>

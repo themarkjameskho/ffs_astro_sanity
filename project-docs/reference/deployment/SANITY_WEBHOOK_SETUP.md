@@ -18,7 +18,7 @@ The endpoint now exists at:
 
 It validates the webhook secret and triggers on-demand revalidation by calling page URLs with the `x-prerender-revalidate` header.
 
-Note: ISR requires pages to be pre-rendered. Ensure dynamic routes like `src/pages/[...slug].astro` and `src/pages/blog/[slug].astro` include `export const prerender = true`.
+Note: this historical deployment note predates the current route model. Dynamic CMS routes now use `export const prerender = false` and are rendered on demand, then cached by Vercel ISR.
 
 ---
 

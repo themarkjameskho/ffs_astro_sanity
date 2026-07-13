@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bed Bug Treatment Website — Master Spec Overview v2.0</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#1a1a1a;--ink2:#4a4a4a;--ink3:#888;
+  --line:#e4e4e4;--line2:#f0f0f0;
+  --page:#fff;--surface:#f8f8f6;--surface2:#f2f2ef;
+  /* page type colors */
+  --c-hp:#F47200;       --c-hp-bg:#fff4e8;    --c-hp-line:#f5c98a;
+  --c-loca:#1a7a4a;     --c-loca-bg:#eaf5ef;  --c-loca-line:#b5ddc8;
+  --c-locb:#8a5c00;     --c-locb-bg:#fef8ea;  --c-locb-line:#f5d88a;
+  --c-sp:#1a3a6b;       --c-sp-bg:#eaf0f9;    --c-sp-line:#b0ccee;
+  --c-slp:#0a5050;      --c-slp-bg:#e8f5f5;   --c-slp-line:#9dd4d4;
+  --c-cp:#2d3a4a;       --c-cp-bg:#edf0f4;    --c-cp-line:#b8c4d0;
+  --c-bl:#4a1a8a;       --c-bl-bg:#f0eaf9;    --c-bl-line:#c8b0ee;
+  /* semantic */
+  --red:#8a1a1a;--red-bg:#faeaea;--red-line:#e8b0b0;
+  --amber:#c85a00;--amber-bg:#fff4e8;--amber-line:#f5c98a;
+  --blue:#1a4f8a;--blue-bg:#eaf0f9;--blue-line:#b0ccee;
+  --green:#1a7a4a;--green-bg:#eaf5ef;--green-line:#b5ddc8;
+}
+html{font-size:15px}
+body{font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;background:#ebebea;color:var(--ink);line-height:1.6;padding:40px 20px 80px}
+.doc{max-width:900px;margin:0 auto;background:var(--page);border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.08)}
+
+/* COVER */
+.cover{background:#111214;color:white;padding:56px 60px 48px;position:relative;overflow:hidden;border-top:6px solid #F47200}
+.cover::before{content:'';position:absolute;top:-80px;right:-80px;width:340px;height:340px;border-radius:50%;background:rgba(255,255,255,.04)}
+.cover::after{content:'';position:absolute;bottom:-50px;left:200px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.025)}
+.cover-eyebrow{font-size:11px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:16px}
+.cover-title{font-size:38px;font-weight:600;line-height:1.1;margin-bottom:14px}
+.cover-title span{color:rgba(255,255,255,.35)}
+.cover-sub{font-size:16px;color:rgba(255,255,255,.6);max-width:540px;line-height:1.65;margin-bottom:44px}
+.cover-stats{display:flex;gap:0;border-top:1px solid rgba(255,255,255,.1);padding-top:32px;border-top:2px solid #F47200}
+.cover-stat{flex:1;padding-right:32px;border-right:1px solid rgba(255,255,255,.08)}
+.cover-stat:last-child{border-right:none;padding-right:0;padding-left:32px}
+.cover-stat:first-child{padding-left:0}
+.cover-stat-num{font-size:28px;font-weight:600;color:white;line-height:1;margin-bottom:5px}
+.cover-stat-label{font-size:12px;color:rgba(255,255,255,.45);line-height:1.4}
+
+/* BODY */
+.body{padding:52px 60px 60px}
+
+/* TOC */
+.toc{border-top:3px solid #F47200;background:var(--surface);border-radius:8px;padding:24px 26px;margin-bottom:52px}
+.toc-title{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin-bottom:16px}
+.toc-list{list-style:none}
+.toc-list li{display:flex;align-items:baseline;gap:6px;padding:5px 0;border-bottom:1px solid var(--line2);font-size:13px}
+.toc-list li:last-child{border-bottom:none}
+.toc-num{font-size:11px;font-weight:600;color:var(--ink3);min-width:22px}
+.toc-name{color:var(--ink2)}
+.toc-dots{flex:1;border-bottom:1px dotted var(--line);margin:0 6px;position:relative;top:-3px}
+
+/* SECTION */
+.section{margin-bottom:52px}
+.section-rule{height:1px;background:linear-gradient(90deg,#F47200 0%,var(--line) 40%);margin-bottom:30px}
+.section-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:22px}
+.section-num{width:28px;height:28px;border-radius:6px;background:#F47200;color:white;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.section-title{font-size:22px;font-weight:600;color:var(--ink);line-height:1.25}
+.section-desc{font-size:13px;color:var(--ink3);margin-top:3px}
+
+/* CALLOUT */
+.callout{border-radius:0 8px 8px 0;padding:15px 18px;margin-bottom:16px;border-left:3px solid}
+.callout-amber{background:var(--amber-bg);border-color:var(--amber)}
+.callout-amber .callout-label{color:var(--amber)}
+.callout-blue{background:var(--blue-bg);border-color:var(--blue)}
+.callout-blue .callout-label{color:var(--blue)}
+.callout-green{background:var(--green-bg);border-color:var(--green)}
+.callout-green .callout-label{color:var(--green)}
+.callout-red{background:var(--red-bg);border-color:var(--red)}
+.callout-red .callout-label{color:var(--red)}
+.callout-label{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;margin-bottom:5px}
+.callout-body{font-size:13px;color:var(--ink2);line-height:1.65}
+
+/* PAGE TYPE CARDS — the main navigation element */
+.page-cards{display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+.page-card{border-radius:10px;border:1px solid;overflow:hidden;display:grid;grid-template-columns:220px 1fr auto}
+.pc-identity{padding:18px 20px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.pc-id-code{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin-bottom:2px}
+.pc-id-name{font-size:16px;font-weight:600;color:var(--ink)}
+.pc-id-url{font-size:11px;font-family:'SF Mono','Fira Code',monospace;margin-top:2px;opacity:.7}
+.pc-body{padding:18px 20px;border-left:1px solid rgba(0,0,0,.06)}
+.pc-role{font-size:13px;color:var(--ink2);line-height:1.6;margin-bottom:8px}
+.pc-meta{display:flex;gap:10px;flex-wrap:wrap}
+.pc-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(0,0,0,.06);color:var(--ink2)}
+.pc-ref{padding:18px 20px;display:flex;align-items:center;justify-content:center;border-left:1px solid rgba(0,0,0,.06)}
+.pc-ref-inner{text-align:center}
+.pc-ref-label{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px}
+.pc-ref-doc{font-size:11.5px;font-weight:600;line-height:1.4;text-align:center}
+
+/* per page type coloring */
+.pct-hp{background:#fff4e8;border-color:#f5c98a}
+.pct-hp .pc-id-code{color:#c85a00}
+.pct-hp .pc-ref-doc{color:#c85a00}
+.pct-loca{background:var(--c-loca-bg);border-color:var(--c-loca-line)}
+.pct-loca .pc-id-code{color:var(--c-loca)}
+.pct-loca .pc-ref-doc{color:var(--c-loca)}
+.pct-locb{background:var(--c-locb-bg);border-color:var(--c-locb-line)}
+.pct-locb .pc-id-code{color:var(--c-locb)}
+.pct-locb .pc-ref-doc{color:var(--c-locb)}
+.pct-sp{background:var(--c-sp-bg);border-color:var(--c-sp-line)}
+.pct-sp .pc-id-code{color:var(--c-sp)}
+.pct-sp .pc-ref-doc{color:var(--c-sp)}
+.pct-slp{background:var(--c-slp-bg);border-color:var(--c-slp-line)}
+.pct-slp .pc-id-code{color:var(--c-slp)}
+.pct-slp .pc-ref-doc{color:var(--c-slp)}
+.pct-cp{background:var(--c-cp-bg);border-color:var(--c-cp-line)}
+.pct-cp .pc-id-code{color:var(--c-cp)}
+.pct-cp .pc-ref-doc{color:var(--c-cp)}
+.pct-bl{background:var(--c-bl-bg);border-color:var(--c-bl-line)}
+.pct-bl .pc-id-code{color:var(--c-bl)}
+.pct-bl .pc-ref-doc{color:var(--c-bl)}
+
+/* FLOW DIAGRAM */
+.flow{background:var(--surface);border-radius:10px;padding:28px;margin-bottom:16px}
+.flow-title{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:22px}
+.flow-row{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:8px}
+.flow-node{border-radius:7px;padding:9px 14px;text-align:center;font-size:12px;font-weight:600;min-width:90px}
+.fn-hp{background:#F47200;color:white}
+.fn-loca{background:var(--c-loca);color:white}
+.fn-locb{background:var(--c-locb-bg);color:var(--c-locb);border:1.5px solid var(--c-locb-line)}
+.fn-sp{background:var(--c-sp);color:white}
+.fn-slp{background:var(--c-slp);color:white}
+.fn-cp{background:var(--c-cp);color:white}
+.fn-bl{background:var(--c-bl);color:white}
+.flow-arrow{color:var(--ink3);font-size:16px;padding:0 8px;flex-shrink:0}
+.flow-down{display:flex;justify-content:center;align-items:center;height:20px;color:var(--ink3);font-size:14px}
+.flow-tier{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.flow-note{font-size:11.5px;color:var(--ink3);text-align:center;margin-top:14px;line-height:1.6}
+.flow-label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);text-align:center;margin:10px 0 6px}
+
+/* URL TABLE */
+.url-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
+.url-table th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
+.url-table td{padding:10px 12px;border-bottom:1px solid var(--line2);vertical-align:middle;color:var(--ink2);font-size:12.5px}
+.url-table td:first-child{font-weight:600;color:var(--ink);width:50px}
+.url-table tr:last-child td{border-bottom:none}
+.url-dot{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:6px;vertical-align:middle}
+
+/* PAGE COUNT VISUAL */
+.count-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.count-card{border-radius:8px;padding:16px;border:1px solid;text-align:center}
+.count-num{font-size:32px;font-weight:600;line-height:1;margin-bottom:5px}
+.count-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.count-sub{font-size:11.5px;line-height:1.4}
+
+/* TWO-SYSTEM DIAGRAM */
+.two-systems{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.sys-box{border-radius:8px;padding:18px;border:1px solid}
+.sys-box-a{background:var(--c-sp-bg);border-color:var(--c-sp-line)}
+.sys-box-b{background:var(--c-loca-bg);border-color:var(--c-loca-line)}
+.sys-label{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
+.sys-box-a .sys-label{color:var(--c-sp)}
+.sys-box-b .sys-label{color:var(--c-loca)}
+.sys-title{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:8px}
+.sys-body{font-size:12.5px;color:var(--ink2);line-height:1.6}
+.sys-chain{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+.sys-node{font-size:11px;font-weight:600;padding:3px 9px;border-radius:4px}
+.sys-arr{color:var(--ink3);font-size:12px}
+.sn-sp{background:var(--c-sp);color:white}
+.sn-slp{background:var(--c-slp);color:white}
+.sn-loca{background:var(--c-loca);color:white}
+.sn-locb{background:var(--c-locb-bg);color:var(--c-locb);border:1px solid var(--c-locb-line)}
+.sn-slp2{background:var(--c-slp-bg);color:var(--c-slp);border:1px solid var(--c-slp-line)}
+
+/* SPEC SET REFERENCE GRID */
+.spec-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.spec-ref{border-radius:10px;border:1px solid;padding:18px 20px;display:flex;gap:14px;align-items:flex-start}
+.spec-dot{width:36px;height:36px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white}
+.spec-ref-content{}
+.spec-ref-code{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin-bottom:2px}
+.spec-ref-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.spec-ref-desc{font-size:12px;color:var(--ink2);line-height:1.55}
+
+.sd-hp{background:var(#F47200)}
+.sd-loca{background:var(--c-loca)}
+.sd-locb{background:var(--c-locb)}
+.sd-sp{background:var(--c-sp)}
+.sd-slp{background:var(--c-slp)}
+.sd-cp{background:var(--c-cp)}
+
+.sr-hp{background:#fff4e8;border-color:#f5c98a}
+.sr-hp .spec-ref-code{color:var(#F47200)}
+.sr-loca{background:var(--c-loca-bg);border-color:var(--c-loca-line)}
+.sr-loca .spec-ref-code{color:var(--c-loca)}
+.sr-locb{background:var(--c-locb-bg);border-color:var(--c-locb-line)}
+.sr-locb .spec-ref-code{color:var(--c-locb)}
+.sr-sp{background:var(--c-sp-bg);border-color:var(--c-sp-line)}
+.sr-sp .spec-ref-code{color:var(--c-sp)}
+.sr-slp{background:var(--c-slp-bg);border-color:var(--c-slp-line)}
+.sr-slp .spec-ref-code{color:var(--c-slp)}
+.sr-cp{background:var(--c-cp-bg);border-color:var(--c-cp-line)}
+.sr-cp .spec-ref-code{color:var(--c-cp)}
+
+/* RULE TABLE */
+.rule-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px}
+.rule-table th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
+.rule-table td{padding:10px 12px;border-bottom:1px solid var(--line2);vertical-align:top;font-size:12.5px}
+.rule-table td:first-child{font-weight:600;color:var(--ink);width:100px}
+.rule-table tr:last-child td{border-bottom:none}
+
+/* CARD */
+.card{background:var(--surface);border-radius:8px;padding:16px;border:1px solid var(--line)}
+.card-title{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:7px}
+.card-body{font-size:12.5px;color:var(--ink2);line-height:1.65}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+
+code{font-size:11.5px;background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--ink);font-family:'SF Mono','Fira Code',monospace}
+
+.note{background:var(--surface);border-radius:8px;padding:13px 17px;font-size:12.5px;color:var(--ink2);line-height:1.65;margin-top:12px}
+.note strong{color:var(--ink)}
+
+/* FOOTER */
+.doc-footer{border-top:1px solid var(--line);padding:18px 60px;display:flex;justify-content:space-between;align-items:center;background:var(--surface)}
+.doc-footer-text{font-size:12px;color:var(--ink3)}
+
+@media print{
+  body{background:white;padding:0}
+  .doc{box-shadow:none;border-radius:0}
+  .cover,.page-card,.flow-node,.spec-ref,.count-card,.sys-box{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .section{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-eyebrow">Master Spec Overview · v2.0</div>
+  <div class="cover-title">Bed Bug Treatment<br><span>Website Spec — Overview</span></div>
+  <div class="cover-sub">A navigational guide to the full spec set. This document describes what the site is, how it's structured, and which spec sheet to use for each page type. It does not replace the individual specs.</div>
+  <div class="cover-stats">
+    <div class="cover-stat">
+      <div class="cover-stat-num">6</div>
+      <div class="cover-stat-label">Page types<br>each with its own spec</div>
+    </div>
+    <div class="cover-stat">
+      <div class="cover-stat-num">44+</div>
+      <div class="cover-stat-label">Pages per location<br>before blog content</div>
+    </div>
+    <div class="cover-stat">
+      <div class="cover-stat-num">2</div>
+      <div class="cover-stat-label">Site configurations<br>single-op &amp; franchise</div>
+    </div>
+    <div class="cover-stat">
+      <div class="cover-stat-num">2</div>
+      <div class="cover-stat-label">Hub-and-spoke<br>SEO systems</div>
+    </div>
+  </div>
+</div>
+
+<div class="body">
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ul class="toc-list">
+    <li><span class="toc-num">01</span><span class="toc-name">What This Site Is — Purpose &amp; Configuration</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">02</span><span class="toc-name">The 6 Page Types — At a Glance</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">03</span><span class="toc-name">URL Architecture</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">04</span><span class="toc-name">Site Link Structure</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">05</span><span class="toc-name">Page Count Estimates</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">06</span><span class="toc-name">The Two SEO Systems</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">07</span><span class="toc-name">The Unique Content Rule</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">08</span><span class="toc-name">Spec Sheet Reference — Where to Go for Detail</span><span class="toc-dots"></span></li>
+  </ul>
+</div>
+
+<!-- 01 WHAT THIS SITE IS -->
+<div class="section">
+  <div class="section-rule"></div>
+  <div class="section-header"><div class="section-num">01</div><div>
+    <div class="section-title">What This Site Is</div>
+    <div class="section-desc">Purpose, audience, and the two build configurations</div>
+  </div></div>
+
+  <p style="font-size:14px;color:var(--ink2);line-height:1.7;margin-bottom:20px;">This is an SEO-first lead generation website for a bed bug treatment business. Its goal is to rank in both traditional Google search and Google Maps local pack results, then convert that traffic into quote requests and phone calls. Every page type exists to serve one of those two goals — or both simultaneously.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Single-Operator Configuration</div>
+      <div class="card-body">One physical location, one service area. The homepage IS the GBP (Google Business Profile) landing page and must satisfy all local SEO requirements. GBP links directly to the homepage. Simpler architecture — approximately 44 pages before blog content for a location serving 6 surrounding cities.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Franchise / Multi-Location Configuration</div>
+      <div class="card-body">Multiple physical locations, each with its own GBP listing. The homepage is a brand hub and location router — it does not receive any GBP link. Each location has its own dedicated location page that GBP links to. Page count multiplies per location added.</div>
+    </div>
+  </div>
+
+  <div class="callout callout-amber">
+    <div class="callout-label">Configuration Choice Affects the Homepage and Contact Page Most</div>
+    <div class="callout-body">The six core page types (LOC-A, LOC-B, SP, SLP, CP, Blog) work the same in both configurations. The homepage and contact page have meaningfully different requirements depending on which configuration applies. Each individual spec sheet calls out variant differences where they exist.</div>
+  </div>
+</div>
+
+<!-- 02 THE 6 PAGE TYPES -->
+<div class="section">
+  <div class="section-rule"></div>
+  <div class="section-header"><div class="section-num">02</div><div>
+    <div class="section-title">The 6 Page Types — At a Glance</div>
+    <div class="section-desc">Every page on this site is one of these types — each has a specific role, keyword target, and spec sheet</div>
+  </div></div>
+
+  <div class="page-cards">
+
+    <div class="page-card pct-loca">
+      <div class="pc-identity">
+        <div class="pc-id-code">LOC-A</div>
+        <div class="pc-id-name">GBP Location Page</div>
+        <div class="pc-id-url">/locations/[state]/[city]/</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-role">The page Google Business Profile links to. Ranks in the local map pack for the primary city. Acts as the internal linking hub for its entire service area cluster — passing authority down to all LOC-B and SLP pages.</div>
+        <div class="pc-meta">
+          <span class="pc-tag">GBP linked</span>
+          <span class="pc-tag">NAP required</span>
+          <span class="pc-tag">Internal hub</span>
+          <span class="pc-tag">1 per GBP location</span>
+        </div>
+      </div>
+      <div class="pc-ref">
+        <div class="pc-ref-inner">
+          <div class="pc-ref-label">Spec sheet</div>
+          <div class="pc-ref-doc" style="color:var(--c-loca)">LOC-A GBP<br>Page Spec v2.0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-card pct-locb">
+      <div class="pc-identity">
+        <div class="pc-id-code">LOC-B</div>
+        <div class="pc-id-name">Proximity Page</div>
+        <div class="pc-id-url">/locations/[state]/[city]/</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-role">Satellite pages for cities surrounding the primary GBP location. Captures nearby city search queries without claiming a physical address there. Must have a unique locally-specific intro paragraph — not a city-name template swap.</div>
+        <div class="pc-meta">
+          <span class="pc-tag">No GBP</span>
+          <span class="pc-tag">Unique content required</span>
+          <span class="pc-tag">4–10 per LOC-A</span>
+          <span class="pc-tag">No LocalBusiness schema</span>
+        </div>
+      </div>
+      <div class="pc-ref">
+        <div class="pc-ref-inner">
+          <div class="pc-ref-label">Spec sheet</div>
+          <div class="pc-ref-doc" style="color:var(--c-locb)">LOC-B Proximity<br>Page Spec v2.0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-card pct-sp">
+      <div class="pc-identity">
+        <div class="pc-id-code">SP</div>
+        <div class="pc-id-name">Service Page</div>
+        <div class="pc-id-url">/services/[service]/</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-role">One page per treatment method (5 total). The authoritative deep-content page for that service nationally — no city modifier. Targets service-intent queries like "heat treatment for bed bugs." Acts as the service hub, feeding authority down to all SLP pages for that service.</div>
+        <div class="pc-meta">
+          <span class="pc-tag">5 pages total</span>
+          <span class="pc-tag">800–1,200 words min</span>
+          <span class="pc-tag">No city modifier</span>
+          <span class="pc-tag">Service hub</span>
+        </div>
+      </div>
+      <div class="pc-ref">
+        <div class="pc-ref-inner">
+          <div class="pc-ref-label">Spec sheet</div>
+          <div class="pc-ref-doc" style="color:var(--c-sp)">SP Service<br>Page Spec v2.0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-card pct-slp">
+      <div class="pc-identity">
+        <div class="pc-id-code">SLP</div>
+        <div class="pc-id-name">Service + Location Page</div>
+        <div class="pc-id-url">/services/[service]/[state]/[city]/</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-role">The highest-converting pages in the site. Targets service + city queries like "heat treatment bed bugs Chicago" — users this specific are minutes from booking. Receives authority from both the parent SP page and the city's LOC-A page simultaneously.</div>
+        <div class="pc-meta">
+          <span class="pc-tag">Highest converting</span>
+          <span class="pc-tag">5 × all cities</span>
+          <span class="pc-tag">Unique intro required</span>
+          <span class="pc-tag">Link UP not across</span>
+        </div>
+      </div>
+      <div class="pc-ref">
+        <div class="pc-ref-inner">
+          <div class="pc-ref-label">Spec sheet</div>
+          <div class="pc-ref-doc" style="color:var(--c-slp)">SLP Service+Location<br>Page Spec v2.0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-card pct-cp">
+      <div class="pc-identity">
+        <div class="pc-id-code">CP</div>
+        <div class="pc-id-name">Contact Page</div>
+        <div class="pc-id-url">/contact/</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-role">The conversion endpoint of last resort. Every other page type links here. One page sitewide. Its sole job is to capture a form submission or a phone call — nothing on this page competes with that. Minimal outbound links by design.</div>
+        <div class="pc-meta">
+          <span class="pc-tag">1 page sitewide</span>
+          <span class="pc-tag">Form above the fold</span>
+          <span class="pc-tag">Minimal outbound links</span>
+          <span class="pc-tag">Single-op / franchise variants</span>
+        </div>
+      </div>
+      <div class="pc-ref">
+        <div class="pc-ref-inner">
+          <div class="pc-ref-label">Spec sheet</div>
+          <div class="pc-ref-doc" style="color:var(--c-cp)">CP Contact<br>Page Spec v2.0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-card pct-bl">
+      <div class="pc-identity">
+        <div class="pc-id-code">BL</div>
+        <div class="pc-id-name">Blog</div>
+        <div class="pc-id-url">/blog/ + /blog/[slug]/</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-role">Captures top-of-funnel informational queries ("do I have bed bugs," "heat vs chemical treatment"). Builds topical authority, earns backlinks, and creates internal linking paths down to SP and SLP pages. Every post must have at least one link to a money page.</div>
+        <div class="pc-meta">
+          <span class="pc-tag">Informational intent</span>
+          <span class="pc-tag">Topical authority</span>
+          <span class="pc-tag">Ongoing content</span>
+          <span class="pc-tag">Article + Person schema</span>
+        </div>
+      </div>
+      <div class="pc-ref">
+        <div class="pc-ref-inner">
+          <div class="pc-ref-label">Spec sheet</div>
+          <div class="pc-ref-doc" style="color:var(--c-bl)">Blog Spec<br>(forthcoming)</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 03 URL ARCHITECTURE -->
+<div class="section">
+  <div class="section-rule"></div>
+  <div class="section-header"><div class="section-num">03</div><div>
+    <div class="section-title">URL Architecture</div>
+    <div class="section-desc">Every page type has a defined URL pattern — consistency is required</div>
+  </div></div>
+
+  <table class="url-table">
+    <thead><tr><th>ID</th><th>Page Type</th><th>URL Pattern</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="url-dot" style="background:var(#F47200)"></span>HP</td>
+        <td>Homepage</td>
+        <td><code>/</code></td>
+        <td>example.com/</td>
+      </tr>
+      <tr>
+        <td><span class="url-dot" style="background:var(--c-loca)"></span>LOC-A</td>
+        <td>GBP Location Page</td>
+        <td><code>/locations/[state]/[city]/</code></td>
+        <td>/locations/illinois/chicago/</td>
+      </tr>
+      <tr>
+        <td><span class="url-dot" style="background:var(--c-locb)"></span>LOC-B</td>
+        <td>Proximity Page</td>
+        <td><code>/locations/[state]/[nearby-city]/</code></td>
+        <td>/locations/illinois/oak-park/</td>
+      </tr>
+      <tr>
+        <td><span class="url-dot" style="background:var(--c-sp)"></span>SP</td>
+        <td>Service Page</td>
+        <td><code>/services/[service-slug]/</code></td>
+        <td>/services/heat-treatment/</td>
+      </tr>
+      <tr>
+        <td><span class="url-dot" style="background:var(--c-slp)"></span>SLP</td>
+        <td>Service + Location</td>
+        <td><code>/services/[service]/[state]/[city]/</code></td>
+        <td>/services/heat-treatment/illinois/chicago/</td>
+      </tr>
+      <tr>
+        <td><span class="url-dot" style="background:var(--c-cp)"></span>CP</td>
+        <td>Contact Page</td>
+        <td><code>/contact/</code></td>
+        <td>example.com/contact/</td>
+      </tr>
+      <tr>
+        <td><span class="url-dot" style="background:var(--c-bl)"></span>BL</td>
+        <td>Blog</td>
+        <td><code>/blog/</code> + <code>/blog/[slug]/</code></td>
+        <td>/blog/early-signs-of-bed-bugs/</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-blue">
+    <div class="callout-label">URL Conventions — Apply Sitewide</div>
+    <div class="callout-body">Lowercase only · Hyphens not underscores · Trailing slash consistent throughout · State and city slugs use full names (not abbreviations) · No parameters or query strings in canonical URLs · Service slugs are fixed: <code>heat-treatment</code> · <code>aprehend-treatment</code> · <code>chemical-treatment</code> · <code>canine-inspection</code> · <code>bed-bug-inspection</code></div>
+  </div>
+</div>
+
+<!-- 04 SITE LINK STRUCTURE -->
+<div class="section">
+  <div class="section-rule"></div>
+  <div class="section-header"><div class="section-num">04</div><div>
+    <div class="section-title">Site Link Structure</div>
+    <div class="section-desc">How authority flows through the site — the homepage is the source, SLP pages are the destination</div>
+  </div></div>
+
+  <div class="flow">
+    <div class="flow-title">Authority flow — top to bottom</div>
+
+    <div class="flow-row">
+      <div class="flow-node fn-hp">Homepage (HP)</div>
+    </div>
+    <div class="flow-down">↓</div>
+    <div class="flow-tier">
+      <div class="flow-node fn-sp">Service Pages<br><span style="font-size:10px;opacity:.7">SP ×5</span></div>
+      <div class="flow-node fn-loca">LOC-A Pages<br><span style="font-size:10px;opacity:.7">1 per location</span></div>
+      <div class="flow-node fn-bl">Blog Index<br><span style="font-size:10px;opacity:.7">/blog/</span></div>
+      <div class="flow-node fn-cp">Contact Page<br><span style="font-size:10px;opacity:.7">/contact/</span></div>
+    </div>
+    <div class="flow-down">↓</div>
+    <div class="flow-tier">
+      <div class="flow-node fn-slp">SLP Pages<br><span style="font-size:10px;opacity:.7">5 × cities</span></div>
+      <div class="flow-node fn-locb">LOC-B Pages<br><span style="font-size:10px;opacity:.7">4–10 per LOC-A</span></div>
+      <div class="flow-node fn-bl" style="background:var(--c-bl-bg);color:var(--c-bl);border:1.5px solid var(--c-bl-line)">Blog Posts<br><span style="font-size:10px;opacity:.7">/blog/[slug]/</span></div>
+    </div>
+
+    <div class="flow-note">SLP pages sit at the intersection of both hub systems — they receive links from SP <em>and</em> LOC-A, making them the strongest non-homepage pages in the site. · Every page type links to Contact. · Blog posts must link to at least one SP, SLP, or Contact page.</div>
+  </div>
+
+  <div class="callout callout-red">
+    <div class="callout-label">The Two-Click Rule</div>
+    <div class="callout-body">Every LOC-A page must be reachable within 2 clicks from the homepage. Every LOC-B and SLP page must be reachable within 1 click from their parent LOC-A or SP page. No money page should be more than 3 clicks from the homepage. If the franchise has many locations, a <code>/locations/</code> hub page between the homepage and LOC-A pages is acceptable.</div>
+  </div>
+</div>
+
+<!-- 05 PAGE COUNT -->
+<div class="section">
+  <div class="section-rule"></div>
+  <div class="section-header"><div class="section-num">05</div><div>
+    <div class="section-title">Page Count Estimates</div>
+    <div class="section-desc">Understanding the scale helps with planning, prioritization, and phased build decisions</div>
+  </div></div>
+
+  <div class="count-grid">
+    <div class="count-card" style="background:var(--c-sp-bg);border-color:var(--c-sp-line)">
+      <div class="count-num" style="color:var(--c-sp)">5</div>
+      <div class="count-label" style="color:var(--c-sp)">Service Pages</div>
+      <div class="count-sub" style="color:var(--ink2)">Fixed. One per treatment method. Built once, shared across all locations.</div>
+    </div>
+    <div class="count-card" style="background:var(--c-loca-bg);border-color:var(--c-loca-line)">
+      <div class="count-num" style="color:var(--c-loca)">1+</div>
+      <div class="count-label" style="color:var(--c-loca)">LOC-A Pages</div>
+      <div class="count-sub" style="color:var(--ink2)">One per GBP / physical location. Scales with number of locations.</div>
+    </div>
+    <div class="count-card" style="background:var(--c-locb-bg);border-color:var(--c-locb-line)">
+      <div class="count-num" style="color:var(--c-locb)">4–10</div>
+      <div class="count-label" style="color:var(--c-locb)">LOC-B Per Location</div>
+      <div class="count-sub" style="color:var(--ink2)">One per surrounding city served. Multiplies per LOC-A.</div>
+    </div>
+    <div class="count-card" style="background:var(--c-slp-bg);border-color:var(--c-slp-line)">
+      <div class="count-num" style="color:var(--c-slp)">5×</div>
+      <div class="count-label" style="color:var(--c-slp)">SLP Pages</div>
+      <div class="count-sub" style="color:var(--ink2)">5 services × every city served. 1 location, 7 cities = 35 SLPs.</div>
+    </div>
+    <div class="count-card" style="background:var(--c-cp-bg);border-color:var(--c-cp-line)">
+      <div class="count-num" style="color:var(--c-cp)">1</div>
+      <div class="count-label" style="color:var(--c-cp)">Contact Page</div>
+      <div class="count-sub" style="color:var(--ink2)">One sitewide. Does not multiply with locations.</div>
+    </div>
+    <div class="count-card" style="background:var(--c-bl-bg);border-color:var(--c-bl-line)">
+      <div class="count-num" style="color:var(--c-bl)">∞</div>
+      <div class="count-label" style="color:var(--c-bl)">Blog Posts</div>
+      <div class="count-sub" style="color:var(--ink2)">Ongoing. Minimum 1 per content cluster at launch. Grow over time.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:4px;">
+    <div class="card-title">Example totals by build size</div>
+    <div style="font-size:13px;color:var(--ink2);line-height:2;margin-top:4px;">
+      <strong style="color:var(--ink)">Single location, 6 surrounding cities:</strong> 1 HP + 5 SP + 1 LOC-A + 6 LOC-B + 35 SLP + 1 CP = <strong style="color:var(--ink)">49 pages</strong> before blog<br>
+      <strong style="color:var(--ink)">Franchise, 3 locations × 6 cities each:</strong> 1 HP + 5 SP + 3 LOC-A + 18 LOC-B + 105 SLP + 1 CP = <strong style="color:var(--ink)">133 pages</strong> before blog<br>
+      <strong style="color:var(--ink)">Franchise, 10 locations × 8 cities each:</strong> 1 HP + 5 SP + 10 LOC-A + 80 LOC-B + 450 SLP + 1 CP = <strong style="color:var(--ink)">547 pages</strong> before blog
+    </div>
+  </div>
+</div>
+
+<!-- 06 THE TWO SEO SYSTEMS -->
+<div class="section">
+  <div class="section-rule"></div>
+  <div class="section-header"><div class="section-num">06</div><div>
+    <div class="section-title">The Two SEO Systems</div>
+    <div class="section-desc">The site runs two overlapping hub-and-spoke structures — understanding both is essential before building</div>
+  </div></div>
+
+  <div class="two-systems">
+    <div class="sys-box sys-box-a">
+      <div class="sys-label">System 1 — Service Hub</div>
+      <div class="sys-title">SP → SLP spokes</div>
+      <div class="sys-body">Each Service Page (SP) is the hub. Its spokes are SLP pages — one per city for that service. The SP passes authority down; each SLP links back up. This system targets "service + city" queries.</div>
+      <div class="sys-chain">
+        <span class="sys-node sn-sp">SP</span>
+        <span class="sys-arr">→</span>
+        <span class="sys-node sn-slp">SLP [City 1]</span>
+        <span class="sys-arr">·</span>
+        <span class="sys-node sn-slp">SLP [City 2]</span>
+        <span class="sys-arr">·</span>
+        <span class="sys-node sn-slp">SLP [City N]</span>
+      </div>
+    </div>
+    <div class="sys-box sys-box-b">
+      <div class="sys-label">System 2 — Location Hub</div>
+      <div class="sys-title">LOC-A → LOC-B + SLP spokes</div>
+      <div class="sys-body">Each LOC-A page is the hub for its service area. Its spokes are LOC-B proximity pages and SLP pages for that city. This system targets "exterminator near [city]" and local map pack queries.</div>
+      <div class="sys-chain">
+        <span class="sys-node sn-loca">LOC-A</span>
+        <span class="sys-arr">→</span>
+        <span class="sys-node sn-locb">LOC-B ×N</span>
+        <span class="sys-arr">+</span>
+        <span class="sys-node sn-slp2">SLP ×5</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-green">
+    <div class="callout-label">Where the Two Systems Intersect</div>
+    <div class="callout-body">SLP pages are the intersection point. They receive a link from their parent SP page (service system) AND from their city's LOC-A page (location system). This dual inbound authority is what makes SLP pages the strongest converting pages in the site. Do not break either link — both are required per the individual SLP spec.</div>
+  </div>
+</div>
+
+<!-- 07 UNIQUE CONTENT RULE -->
+<div class="section">
+  <div class="section-rule"></div>
+  <div class="section-header"><div class="section-num">07</div><div>
+    <div class="section-title">The Unique Content Rule</div>
+    <div class="section-desc">The single most important quality constraint across the entire page set</div>
+  </div></div>
+
+  <div class="callout callout-red">
+    <div class="callout-label">Three Page Types Require Genuinely Unique Intro Content — No Templates</div>
+    <div class="callout-body">LOC-B, SLP, and Blog posts each require a unique opening section that cannot be replicated across pages by swapping a city name. Google actively targets geo-templated doorway pages. Pages that copy the same structure with only the city name changed will not rank — and may trigger a quality penalty that suppresses the entire domain.</div>
+  </div>
+
+  <table class="rule-table" style="margin-top:12px;">
+    <thead><tr><th>Page Type</th><th>What Must Be Unique</th><th>Minimum</th><th>What Can Be Consistent</th></tr></thead>
+    <tbody>
+      <tr><td style="color:var(--c-locb);font-weight:700">LOC-B</td><td style="color:var(--ink2)">Intro paragraph — local neighborhood, housing type, landmark, drive-time from GBP city</td><td style="color:var(--ink2)">100–150 words</td><td style="color:var(--ink2)">Services section, process section, FAQ, CTA structure</td></tr>
+      <tr><td style="color:var(--c-slp);font-weight:700">SLP</td><td style="color:var(--ink2)">Intro paragraph — why this specific treatment suits this city's housing type, local reference</td><td style="color:var(--ink2)">100–150 words</td><td style="color:var(--ink2)">How it works (brief), what to expect, pricing, FAQ structure</td></tr>
+      <tr><td style="color:var(--c-bl);font-weight:700">Blog</td><td style="color:var(--ink2)">Full article — original analysis, not AI-spun rewrites of other posts</td><td style="color:var(--ink2)">600+ words</td><td style="color:var(--ink2)">Post template, CTA block, schema structure</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note"><strong>Pages that do NOT require unique intro content:</strong> LOC-A, SP, and CP pages are each one-of-a-kind by definition — there is only one per city (LOC-A), one per service (SP), and one sitewide (CP). Their content must be accurate and complete, but uniqueness across multiple instances is not a concern.</div>
+</div>
+
+<!-- 08 SPEC SHEET REFERENCE -->
+<div class="section">
+  <div class="section-rule"></div>
+  <div class="section-header"><div class="section-num">08</div><div>
+    <div class="section-title">Spec Sheet Reference</div>
+    <div class="section-desc">One spec sheet per page type — each is fully self-contained with no dependency on other specs to use</div>
+  </div></div>
+
+  <p style="font-size:13.5px;color:var(--ink2);line-height:1.7;margin-bottom:22px;">Every spec sheet covers the same categories for its page type: role, target keywords, required page assets, schema markup, internal linking rules, canonical directives, a section-by-section wireframe, and a pre-launch checklist. Use the checklist at the end of each spec as the final sign-off before a page goes live.</p>
+
+  <div class="spec-grid">
+
+    <div class="spec-ref sr-loca">
+      <div class="spec-dot sd-loca">A</div>
+      <div class="spec-ref-content">
+        <div class="spec-ref-code">LOC-A — GBP Location Page Spec v2.0</div>
+        <div class="spec-ref-title">GBP landing page, local pack hub</div>
+        <div class="spec-ref-desc">Use this for: the page linked from Google Business Profile. Covers NAP requirements, map embed, live review widget, service area hub section, and the full internal linking hub role. Single-op: this is the homepage spec.</div>
+      </div>
+    </div>
+
+    <div class="spec-ref sr-locb">
+      <div class="spec-dot sd-locb">B</div>
+      <div class="spec-ref-content">
+        <div class="spec-ref-code">LOC-B — Proximity Page Spec v2.0</div>
+        <div class="spec-ref-title">Satellite pages for surrounding cities</div>
+        <div class="spec-ref-desc">Use this for: every nearby-city page that is not directly tied to a GBP listing. Covers the unique content requirement in depth, what this page must NOT include (no NAP, no map), and why the canonical must never point to LOC-A.</div>
+      </div>
+    </div>
+
+    <div class="spec-ref sr-sp">
+      <div class="spec-dot sd-sp">SP</div>
+      <div class="spec-ref-content">
+        <div class="spec-ref-code">SP — Service Page Spec v2.0</div>
+        <div class="spec-ref-title">One per treatment method — 5 total</div>
+        <div class="spec-ref-desc">Use this for: all five service pages. Covers required content depth (800–1,200 words), the four content sections (mechanism, use case, what to expect, pricing), and the "We Also Offer" cross-service linking block that is required on every SP page.</div>
+      </div>
+    </div>
+
+    <div class="spec-ref sr-slp">
+      <div class="spec-dot sd-slp">SLP</div>
+      <div class="spec-ref-content">
+        <div class="spec-ref-code">SLP — Service+Location Page Spec v2.0</div>
+        <div class="spec-ref-title">Highest-converting pages — 5 × all cities</div>
+        <div class="spec-ref-desc">Use this for: every service + city combination page. Covers the intersection of both hub systems, the unique intro requirement with good/bad examples, the "link UP not across" rule, and why these pages must never be canonical'd to the parent SP or LOC-A.</div>
+      </div>
+    </div>
+
+    <div class="spec-ref sr-cp">
+      <div class="spec-dot sd-cp">CP</div>
+      <div class="spec-ref-content">
+        <div class="spec-ref-code">CP — Contact Page Spec v2.0</div>
+        <div class="spec-ref-title">The conversion endpoint — 1 page sitewide</div>
+        <div class="spec-ref-desc">Use this for: the single /contact/ page. Covers the full form field anatomy, submit button copy rules, the two configuration variants (single-op with NAP/map vs. franchise with location finder), and why outbound links from this page are intentionally minimal.</div>
+      </div>
+    </div>
+
+    <div class="spec-ref" style="background:var(--c-bl-bg);border-color:var(--c-bl-line)">
+      <div class="spec-dot sd-cp" style="background:var(--c-bl)">BL</div>
+      <div class="spec-ref-content">
+        <div class="spec-ref-code" style="color:var(--c-bl)">BL — Blog Spec</div>
+        <div class="spec-ref-title">Informational content — forthcoming</div>
+        <div class="spec-ref-desc">Blog spec sheet is in development. Key rules in the interim: every post must link to at least one SP, SLP, or Contact page. Use Article + Person schema. Four content clusters: identification, treatment, prevention, local/seasonal.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="callout callout-blue" style="margin-top:20px;">
+    <div class="callout-label">How to Use This Spec Set</div>
+    <div class="callout-body">
+      <strong>Starting a new page?</strong> Find its page type, open the corresponding spec sheet, and work through it section by section. The wireframe section shows what to build. The checklist at the end confirms it's done correctly.<br><br>
+      <strong>Reviewing a finished page?</strong> Use the pre-launch checklist at the end of the relevant spec sheet. Every item must pass before the page goes live.<br><br>
+      <strong>Not sure which page type applies?</strong> Check Section 02 of this document — the "At a Glance" cards describe each type's role and distinguishing characteristics. If a page covers one service in one city, it's an SLP. If it covers all services for one city, it's a LOC-A or LOC-B. If it covers one service nationally, it's an SP.
+    </div>
+  </div>
+</div>
+
+</div><!-- /body -->
+
+<div class="doc-footer">
+  <div class="doc-footer-text">Bed Bug Treatment · Master Spec Overview · v2.0</div>
+  <div class="doc-footer-text">Companion specs: LOC-A · LOC-B · SP · SLP · CP · BL</div>
+</div>
+
+</div><!-- /doc -->
+</body>
+</html>

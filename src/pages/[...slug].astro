@@ -3,7 +3,6 @@ export const prerender = false;
 import MainLayout from "../components/layouts/MainLayout.astro";
 import SectionRenderer from "../components/sections/SectionRenderer.astro";
 import { loadPage } from "../lib/pageLoader";
-import { fetchAllPageSlugs } from "../lib/queries/allPages";
 import type { HeroSection } from "../types/sections";
 import {
   getHeroBackgroundUrl,
@@ -12,22 +11,6 @@ import {
   getHeroSideImageSrcSet,
   getHeroSideImageUrl,
 } from "../lib/imageOptimizer";
-
-export async function getStaticPaths() {
-  const entries = await fetchAllPageSlugs();
-  const paths = entries.map(({ slug }) => {
-    const cleanSlug = slug && slug.length ? slug : "home";
-    const paramSlug = cleanSlug === "home" ? undefined : cleanSlug;
-    return {
-      params: { slug: paramSlug },
-      props: { slug: cleanSlug },
-    };
-  });
-  if (!paths.some((p) => p.props.slug === "home")) {
-    paths.push({ params: { slug: undefined }, props: { slug: "home" } });
-  }
-  return paths;
-}
 
 const slugProp = Astro.props?.slug as string | undefined;
 const rawSlugParam = Astro.params.slug;

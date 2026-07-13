@@ -2,23 +2,8 @@
 export const prerender = false;
 import MainLayout from "../../components/layouts/MainLayout.astro";
 import { getSanityClient } from "../../lib/sanityClient";
-import {
-  fetchAllBlogPostSlugs,
-  fetchAllBlogPosts,
-} from "../../lib/queries/allBlogPosts";
 import { portableTextToHtml } from "../../lib/portableText";
 import { optimizeImageUrl } from "../../lib/imageOptimizer";
-
-export async function getStaticPaths() {
-  // Use lightweight query to get only slugs for getStaticPaths
-  const slugEntries = await fetchAllBlogPostSlugs();
-
-  // For each slug, we'll fetch the full post data during rendering
-  return slugEntries.map((entry: any) => ({
-    params: { slug: entry.slug },
-    props: { slug: entry.slug },
-  }));
-}
 
 interface Props {
   slug: string;

@@ -1,5 +1,6 @@
 import { fetchPageBySlug } from './queries/pageBySlug';
 import { fetchPageByType } from './queries/pageByType';
+import { siteProfile } from '../data/siteProfile';
 import type { Sections } from '../types/sections';
 
 export type PageData = {
@@ -49,7 +50,7 @@ export async function loadPage({ pageType, slug, fallbackSections }: LoadOptions
     : Array.isArray(fallbackSections) ? fallbackSections : [];
 
   return {
-    title: page?.seo?.seoTitle ?? page?.title ?? '{{BRAND_NAME}}',
+    title: page?.seo?.seoTitle ?? page?.title ?? siteProfile.brandName,
     description: page?.seo?.seoDescription ?? undefined,
     canonicalUrl: page?.seo?.canonicalUrl ?? undefined,
     sections

@@ -1,10 +1,11 @@
 import { fetchAllPageSlugs } from '../lib/queries/allPages';
 import { fetchAllBlogPostSlugs } from '../lib/queries/allBlogPosts';
+import { PREFERRED_SITE_ORIGIN } from '../lib/canonical';
 
 export const prerender = false;
 
 export async function GET() {
-  const siteUrl = 'https://{{VERCEL_PREVIEW_DOMAIN}}';
+  const siteUrl = PREFERRED_SITE_ORIGIN;
 
   // Fetch all data
   const [pages, posts] = await Promise.all([

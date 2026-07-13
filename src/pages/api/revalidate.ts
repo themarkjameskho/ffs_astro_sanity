@@ -38,7 +38,15 @@ const buildOrigin = (request: Request) => {
     return `https://${process.env.VERCEL_URL}`;
   }
 
-  return 'https://{{fork_source_slug}}pestcontrol.com';
+  if (process.env.SITE_URL) {
+    return process.env.SITE_URL;
+  }
+
+  if (process.env.PUBLIC_SITE_URL) {
+    return process.env.PUBLIC_SITE_URL;
+  }
+
+  return 'https://example.com';
 };
 
 const normalizePath = (slug?: string) => {

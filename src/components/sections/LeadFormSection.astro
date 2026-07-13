@@ -2,8 +2,8 @@
 /**
  * LeadFormSection — v5-modern rebuild.
  *
- * Same Sanity props (title, subtitle, body, backgroundTheme, logo, alignment).
- * Same hardcoded form fields and submit JS contract.
+ * Same Sanity props (title, subtitle, body, backgroundTheme, logo, alignment),
+ * now honoring configured form fields/messages with a standard fallback.
  *
  * Visual changes:
  *   - Section uses .bbg-section padding and brand surfaces
@@ -15,7 +15,8 @@
  *     to be a real CTA, not a small oval)
  *   - All inputs share consistent radius, padding, focus ring
  */
-import type { LeadFormSection } from '../../types/sections';
+import type { LeadFormField, LeadFormSection } from '../../types/sections';
+import { siteProfile } from '../../data/siteProfile';
 import { portableTextToHtml } from '../../lib/portableText';
 import { optimizeImageUrl } from '../../lib/imageOptimizer';
 import { splitHighlight } from '../../utils/highlightTitle';
@@ -43,8 +44,62 @@ const isDarkSection = backgroundTheme === 'oliveGreen' || backgroundTheme === 'd
 // lets the script find every instance with one selector.
 const formId = `contact_form_${Math.random().toString(36).slice(2, 9)}`;
 const defaultAction = '/api/contact';
+const safeFormAction = props.formAction?.startsWith('/') ? props.formAction : defaultAction;
 const bodyHtml = props.body ? portableTextToHtml(props.body) : '';
 const pageSlugValue = pageSlug?.length ? pageSlug : 'home';
+const successMessage = props.successMessage || `Thanks! A ${siteProfile.brandName} specialist will contact you shortly.`;
+const errorMessage = props.errorMessage || 'Something went wrong. Please call us directly while we fix the form.';
+const defaultFields: LeadFormField[] = [
+  { name: 'firstName', label: 'First name', placeholder: 'Jane', type: 'text', required: true, width: 'half' },
+  { name: 'lastName', label: 'Last name', placeholder: 'Doe', type: 'text', required: true, width: 'half' },
+  { name: 'phone', label: 'Phone number', placeholder: '(555) 555-5555', type: 'tel', required: true, width: 'half' },
+  { name: 'email', label: 'Email address', placeholder: 'you@example.com', type: 'email', required: true, width: 'half' },
+  { name: 'address', label: 'Service address', placeholder: 'Street, City, State ZIP', type: 'text', required: true, width: 'full' },
+  {
+    name: 'methodOfContact',
+    label: 'Method of contact',
+    type: 'select',
+    required: true,
+    width: 'half',
+    options: [
+      { label: 'Call me', value: 'Call Me' },
+      { label: 'Email me', value: 'Email Me' },
+      { label: 'Text me', value: 'Text Me' }
+    ]
+  },
+  {
+    name: 'bestTime',
+    label: 'Best time to reach you',
+    type: 'select',
+    required: true,
+    width: 'half',
+    options: [
+      { label: 'Morning', value: 'Morning' },
+      { label: 'Afternoon', value: 'Afternoon' },
+      { label: 'Evening', value: 'Evening' }
+    ]
+  },
+  {
+    name: 'message',
+    label: "Tell us what's going on",
+    placeholder: 'Where are the bites, when did you notice them, anything else we should know...',
+    type: 'textarea',
+    required: true,
+    width: 'full',
+    rows: 4
+  }
+];
+const formFields = Array.isArray(props.fields) && props.fields.length > 0 ? props.fields : defaultFields;
+const fieldRows = formFields.reduce<LeadFormField[][]>((rows, field) => {
+  const normalizedField = { ...field, width: field.width ?? 'full' };
+  const lastRow = rows[rows.length - 1];
+  if (normalizedField.width === 'half' && lastRow && lastRow.length === 1 && lastRow[0].width === 'half') {
+    lastRow.push(normalizedField);
+  } else {
+    rows.push([normalizedField]);
+  }
+  return rows;
+}, []);
 
 // Cloudflare Turnstile site key. Public by design (it identifies the
 // widget config to Cloudflare); the SECRET key lives server-side only
@@ -87,7 +142,7 @@ const turnstileEnabled =
         <div class="bbg-form-logo">
           <img
             src={optimizeImageUrl(props.logo.url, { width: 360, height: 0, fit: 'scale' })}
-            alt={props.logo.alt ?? '{{BRAND_NAME}}'}
+            alt={props.logo.alt ?? siteProfile.brandName}
             width={180}
             height={120}
             loading="lazy"
@@ -100,115 +155,67 @@ const turnstileEnabled =
         id={formId}
         data-contact-form
         method="post"
-        action={defaultAction}
+        action={safeFormAction}
         class="bbg-form-grid"
       >
         <input type="hidden" name="formTitle" value={props.title ?? 'Contact Form'} />
         <input type="hidden" name="pageSlug" value={pageSlugValue} />
 
-        <div class="bbg-form-row">
-          <div class="bbg-form-field">
-            <label for="contact-first-name">First name</label>
-            <input
-              type="text"
-              id="contact-first-name"
-              name="firstName"
-              placeholder="Jane"
-              autocomplete="given-name"
-              required
-            />
+        {fieldRows.map((row) => (
+          <div class={row.length > 1 ? 'bbg-form-row' : 'bbg-form-single-row'}>
+            {row.map((field) => {
+              const fieldId = `${formId}_${field.name}`;
+              const required = field.required !== false;
+              return (
+                <div class="bbg-form-field">
+                  <label for={fieldId}>{field.label}</label>
+                  {field.type === 'textarea' ? (
+                    <textarea
+                      id={fieldId}
+                      name={field.name}
+                      placeholder={field.placeholder}
+                      rows={field.rows ?? 4}
+                      required={required}
+                    ></textarea>
+                  ) : field.type === 'select' ? (
+                    <div class="bbg-form-select-wrap">
+                      <select id={fieldId} name={field.name} required={required}>
+                        <option value="">{field.placeholder || `Select ${field.label.toLowerCase()}`}</option>
+                        {field.options?.map((option) => (
+                          <option value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                      <svg class="bbg-form-select-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </div>
+                  ) : field.type === 'checkboxGroup' ? (
+                    <div class="bbg-form-checkbox-group">
+                      {field.options?.map((option) => (
+                        <label class="bbg-form-checkbox">
+                          <input
+                            type="checkbox"
+                            name={field.name}
+                            value={option.value}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <input
+                      type={field.type || 'text'}
+                      id={fieldId}
+                      name={field.name}
+                      placeholder={field.placeholder}
+                      required={required}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div class="bbg-form-field">
-            <label for="contact-last-name">Last name</label>
-            <input
-              type="text"
-              id="contact-last-name"
-              name="lastName"
-              placeholder="Doe"
-              autocomplete="family-name"
-              required
-            />
-          </div>
-        </div>
-
-        <div class="bbg-form-row">
-          <div class="bbg-form-field">
-            <label for="contact-phone">Phone number</label>
-            <input
-              type="tel"
-              id="contact-phone"
-              name="phone"
-              placeholder="(555) 555-5555"
-              autocomplete="tel"
-              required
-            />
-          </div>
-          <div class="bbg-form-field">
-            <label for="contact-email">Email address</label>
-            <input
-              type="email"
-              id="contact-email"
-              name="email"
-              placeholder="you@example.com"
-              autocomplete="email"
-              required
-            />
-          </div>
-        </div>
-
-        <div class="bbg-form-field">
-          <label for="contact-address">Service address</label>
-          <input
-            type="text"
-            id="contact-address"
-            name="address"
-            placeholder="Street, City, State ZIP"
-            autocomplete="street-address"
-            required
-          />
-        </div>
-
-        <div class="bbg-form-row">
-          <div class="bbg-form-field">
-            <label for="contact-method">Method of contact</label>
-            <div class="bbg-form-select-wrap">
-              <select id="contact-method" name="methodOfContact" required>
-                <option value="">Select method</option>
-                <option value="Call Me">Call me</option>
-                <option value="Email Me">Email me</option>
-                <option value="Text Me">Text me</option>
-              </select>
-              <svg class="bbg-form-select-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </div>
-          </div>
-          <div class="bbg-form-field">
-            <label for="contact-best-time">Best time to reach you</label>
-            <div class="bbg-form-select-wrap">
-              <select id="contact-best-time" name="bestTime" required>
-                <option value="">Select time</option>
-                <option value="Morning">Morning</option>
-                <option value="Afternoon">Afternoon</option>
-                <option value="Evening">Evening</option>
-              </select>
-              <svg class="bbg-form-select-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div class="bbg-form-field">
-          <label for="contact-message">Tell us what's going on</label>
-          <textarea
-            id="contact-message"
-            name="message"
-            placeholder="Where are the bites, when did you notice them, anything else we should know..."
-            rows="4"
-            required
-          ></textarea>
-        </div>
+        ))}
 
         {turnstileEnabled && (
           <div class="bbg-form-turnstile-wrap">
@@ -414,6 +421,12 @@ const turnstileEnabled =
     gap: 18px;
   }
 
+  .bbg-form-single-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
   @media (max-width: 600px) {
     .bbg-form-row { grid-template-columns: 1fr; }
   }
@@ -476,6 +489,30 @@ const turnstileEnabled =
     resize: vertical;
     min-height: 110px;
     font-family: var(--font-body);
+  }
+
+  .bbg-form-checkbox-group {
+    display: grid;
+    gap: 10px;
+    padding: 10px 0 2px;
+  }
+
+  .bbg-form-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink-soft);
+  }
+
+  .bbg-form-checkbox input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--green-deep);
   }
 
   /* === Custom select chevron ======================================= */
@@ -572,7 +609,7 @@ const turnstileEnabled =
   }
 </style>
 
-<script is:inline>
+<script is:inline define:vars={{ successMessage, errorMessage }}>
   (() => {
     // Find every LeadFormSection instance on the page. Using a data-attribute
     // selector instead of getElementById so multiple forms (e.g. inline form
@@ -640,7 +677,7 @@ const turnstileEnabled =
               try { window.turnstile.reset(turnstileWidget); } catch (e) {}
             }
             if (statusEl) {
-              statusEl.textContent = 'Thanks! A {{BRAND_NAME}} specialist will contact you shortly.';
+              statusEl.textContent = successMessage;
               statusEl.className = 'bbg-form-status is-success';
             }
           } else {
@@ -648,7 +685,7 @@ const turnstileEnabled =
           }
         } catch (err) {
           if (statusEl) {
-            statusEl.textContent = 'Something went wrong. Please call us directly while we fix the form.';
+            statusEl.textContent = errorMessage;
             statusEl.className = 'bbg-form-status is-error';
           }
         } finally {

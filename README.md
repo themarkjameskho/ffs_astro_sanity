@@ -1,6 +1,6 @@
-# Bed Bug Be Gone Now Marketing Site
+# FFS Astro + Sanity Home-Service Template
 
-This repository contains the marketing website for Bed Bug Be Gone Now. The site is built with Astro, styled with Tailwind CSS, and powered by Sanity Studio as the CMS for dynamic pages and structured marketing content.
+This repository is the Fast Forward Search Astro + Sanity starting point for home-service, pest-control, and bed-bug SEO sites. It supports both new builds and WordPress migrations into a standardized Sanity section system.
 
 ## Tech Stack
 - **Astro** for the website front end
@@ -75,11 +75,11 @@ The site runs on Vercel with **ISR (Incremental Static Regeneration)**. Two sepa
 | **Content** (Sanity edit → Publish) | Sanity webhook → `POST /api/revalidate` → Vercel invalidates the page → fresh content on next request (seconds) |
 | **Code** (git push to `main`) | Vercel auto-deploys → full rebuild (~2–3 min) |
 
-**Production URL (dev):** `https://{{VERCEL_PREVIEW_DOMAIN}}`
+**Production URL:** set with `SITE_URL` / `PUBLIC_SITE_URL`.
 
 **Sanity webhook config** (set up in `sanity.io/manage` → API → Webhooks):
-- Name: `{{BRAND_ABBREV}}-webhook`
-- URL: `https://{{VERCEL_PREVIEW_DOMAIN}}/api/revalidate` *(no `?secret=` query string)*
+- Name: `<brand>-webhook`
+- URL: `<production-site-url>/api/revalidate` *(no `?secret=` query string)*
 - Dataset: `* (all datasets)`
 - HTTP method: `POST`
 - HTTP Header (Advanced settings) — Name: `x-vercel-webhook-secret`, Value: same value as the `SANITY_WEBHOOK_SECRET` env var in Vercel
@@ -89,10 +89,9 @@ The site runs on Vercel with **ISR (Incremental Static Regeneration)**. Two sepa
 
 Common mistake: putting the secret in the URL as `?secret=...` instead of in HTTP Headers. The endpoint reads from the header.
 
-All dynamic pages (`[...slug].astro`, blog posts, sitemaps) use `prerender = false` so they're ISR-eligible. Edge cache: 60 seconds.
+Dynamic CMS pages (`[...slug].astro`, blog posts, sitemaps) intentionally use `prerender = false`. They are rendered on demand and cached by Vercel ISR. Do not add `getStaticPaths()` to those routes unless the project intentionally switches back to pre-rendered static pages.
 
-Full setup, verification, and troubleshooting reference:
-**[`project-docs/reference/deployment/{{BRAND_ABBREV}}_ISR_WEBHOOK.md`](./project-docs/reference/deployment/{{BRAND_ABBREV}}_ISR_WEBHOOK.md)**
+Full setup, verification, and troubleshooting references live under `project-docs/reference/deployment/`.
 
 ## Troubleshooting
 - If Astro type generation gets stuck, delete `.astro/` and restart the dev server.

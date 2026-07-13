@@ -80,7 +80,7 @@ export const leadFormSection = defineType({
       name: 'successMessage',
       title: 'Success Message',
       type: 'string',
-      initialValue: 'Thanks! A {{BRAND_NAME}} specialist will contact you shortly.',
+      initialValue: 'Thanks! A specialist will contact you shortly.',
       description: 'Shown after a successful submission.'
     }),
     defineField({

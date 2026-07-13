@@ -1,7 +1,9 @@
 # Content Writer Guide
-## Heat Tech Pest Control - Sanity CMS Content Creation
+## FFS Astro+Sanity - Sanity CMS Content Creation
 
 Welcome! This guide explains how to create and manage page content in our Sanity CMS. All pages are built from modular **sections** that you can mix-and-match to create unique landing pages and blog posts.
+
+Before using AI to draft copy, use `project-docs/active/content-ops/WRITER_PROMPTS_AND_WORKFLOW.md`. That prompt workflow is mandatory for new builds and WordPress → Astro + Sanity migrations because it prevents generic copy, city-name swaps, unsupported claims, and raw WordPress HTML from entering Sanity.
 
 ---
 
@@ -13,6 +15,7 @@ Welcome! This guide explains how to create and manage page content in our Sanity
 5. [Blog Post Creation](#blog-post-creation)
 6. [SEO Best Practices](#seo-best-practices)
 7. [Common Mistakes](#common-mistakes)
+8. AI prompt workflow: `WRITER_PROMPTS_AND_WORKFLOW.md`
 
 ---
 

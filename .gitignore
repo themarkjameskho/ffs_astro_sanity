@@ -127,3 +127,7 @@ vite.config.ts.timestamp-*
 
 # Migration source data (WordPress exports, etc.) — not site code
 import/
+
+# Kadence migrator outputs (client-specific, regenerated each run)
+scripts/kadence-migrator/migration-report.json
+scripts/kadence-migrator/unmapped-rowlayouts.json
