@@ -18,7 +18,8 @@
     "migrate:kadence": "node scripts/kadence-migrator/migrate-pages.mjs",
     "migrate:kadence:dry": "node scripts/kadence-migrator/migrate-pages.mjs --dry-run",
     "sanity:dev": "npm run dev --prefix studio",
-    "sanity:deploy": "npm run deploy --prefix studio"
+    "sanity:deploy": "npm run deploy --prefix studio",
+    "start:project": "node scripts/start-project.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.6.0",

@@ -13,6 +13,14 @@
 3. `project-docs/standards/COMPONENT-AND-CONTENT-STANDARD.md` — required page architecture, rich-text, heading/list, CTA, and migration-normalization rules.
 4. The selected track under `project-docs/tracks/`.
 
+## Mandatory Project Starter (New Client Work)
+
+Before starting a Fresh Build, WordPress Migration, or Landing Page, run `npm run start:project` and complete the local-only Project Starter. It records the selected track, required inputs, and approved component/variant plan in `project-docs/clients/<client-slug>/STARTER-INTAKE.json`.
+
+- The starter is served from `tools/project-starter/`, outside `src/`, so it is never included in the Astro production build or deployed website.
+- Do not start implementation until the intake record exists and the matching lifecycle pre-development gate is complete.
+- The starter is an intake guardrail, not a place for secrets. Never enter tokens, API keys, or credentials.
+
 When the trigger phrase **`check work`** is used, report: selected track, lifecycle stage, gate result (`PASS`, `SCOPED PASS`, `HOLD`, or `NOT APPLICABLE`), first blocker, owner, next action, and evidence required.
 
 ## Mandatory Build/Migration Guidance

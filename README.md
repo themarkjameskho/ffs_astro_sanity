@@ -4,6 +4,14 @@ This repository is the official Fast Forward Search Astro + Sanity starting poin
 
 Start with [project-docs/START-HERE.md](project-docs/START-HERE.md). Every AI agent and developer must follow the lifecycle checklist, selected delivery track, and component/content standard before making a change.
 
+For a new client, launch the local-only intake and component guide first:
+
+```sh
+npm run start:project
+```
+
+It runs at `http://127.0.0.1:4399`, writes a non-secret intake record under `project-docs/clients/<client-slug>/`, and is excluded from the Astro production build.
+
 ## Tech Stack
 - **Astro** for the website front end
 - **Tailwind CSS** for styling
@@ -46,6 +54,7 @@ Create the appropriate `.env` files for the site and Studio with these values:
 | `npm run dev` | Start the Astro development server |
 | `npm run build` | Build the production Astro site |
 | `npm run preview` | Preview the production build locally |
+| `npm run start:project` | Start the local-only project intake and visual section guide |
 | `npm run sanity:dev` | Start Sanity Studio from the root project |
 | `npm run sanity:deploy` | Deploy Sanity Studio |
 

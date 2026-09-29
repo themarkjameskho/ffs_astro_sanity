@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>FFS Project Starter</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <div>
+          <p class="kicker">FFS Astro + Sanity</p>
+          <h1>Start a project from the shared system.</h1>
+        </div>
+        <p class="local-note">Local-only workspace. It is not part of the Astro site or deployment.</p>
+      </header>
+
+      <nav class="progress" aria-label="Starter workflow">
+        <a href="#track">1. Delivery track</a>
+        <a href="#inputs">2. Required inputs</a>
+        <a href="#catalog">3. Shared sections</a>
+        <a href="#save">4. Save intake</a>
+      </nav>
+
+      <form id="starter-form">
+        <section id="track" class="panel">
+          <p class="eyebrow">Choose the work</p>
+          <h2>Which delivery track is this?</h2>
+          <div class="track-grid" role="radiogroup" aria-label="Delivery track">
+            <label class="track-card"><input type="radio" name="track" value="fresh" required /><span>Fresh build</span><small>New client, new site, new content.</small></label>
+            <label class="track-card"><input type="radio" name="track" value="migration" /><span>WordPress migration</span><small>Existing content, URLs, metadata, redirects, and media must be preserved.</small></label>
+            <label class="track-card"><input type="radio" name="track" value="landing" /><span>Landing page</span><small>Campaign or microsite with a defined conversion goal.</small></label>
+          </div>
+        </section>
+
+        <section id="inputs" class="panel">
+          <p class="eyebrow">Name the project</p>
+          <h2>Record the decision inputs.</h2>
+          <div class="form-grid">
+            <label>Project or client name<input name="projectName" autocomplete="organization" required /></label>
+            <label>Project slug<input name="projectSlug" pattern="[a-z0-9-]+" placeholder="client-name" required /><small>Lowercase letters, numbers, and hyphens only.</small></label>
+          </div>
+          <fieldset class="checklist" id="base-checklist">
+            <legend>Required for every track</legend>
+            <label><input type="checkbox" name="brief" required /> Approved project brief</label>
+            <label><input type="checkbox" name="references" required /> References or approved baseline look</label>
+            <label><input type="checkbox" name="designSystem" required /> Design system decision</label>
+            <label><input type="checkbox" name="contentArchitecture" required /> Content architecture and page/content plan</label>
+          </fieldset>
+          <fieldset class="checklist conditional" data-track="migration">
+            <legend>Migration evidence</legend>
+            <label><input type="checkbox" name="sourceExport" /> WordPress export or source baseline</label>
+            <label><input type="checkbox" name="urlInventory" /> URL and redirect inventory</label>
+            <label><input type="checkbox" name="metadataInventory" /> Metadata and canonical inventory</label>
+            <label><input type="checkbox" name="mediaManifest" /> Media manifest and provenance record</label>
+          </fieldset>
+          <fieldset class="checklist conditional" data-track="landing">
+            <legend>Landing-page evidence</legend>
+            <label><input type="checkbox" name="conversionGoal" /> Conversion goal and primary CTA</label>
+            <label><input type="checkbox" name="tracking" /> Tracking, form, and attribution requirements</label>
+            <label><input type="checkbox" name="scope" /> Approved page scope and launch boundary</label>
+          </fieldset>
+        </section>
+
+        <section id="catalog" class="panel">
+          <p class="eyebrow">Use registered components</p>
+          <h2>Choose shared variants. Do not create page templates.</h2>
+          <p class="intro">These choices are planning inputs, not visual route logic. Every selected section still renders through the canonical SectionRenderer.</p>
+          <div class="catalog">
+            <article class="catalog-feature">
+              <div class="feature-copy"><span class="catalog-label">Hero</span><h3>Pick a hero layout</h3><p>Use the existing hero component. The page H1 belongs here.</p></div>
+              <div class="variant-options">
+                <label class="variant"><input type="radio" name="heroVariant" value="oneColumn" checked /><span class="variant-preview one-column"><b>H1</b><i></i><i></i></span><strong>One column</strong><small>Centered content</small></label>
+                <label class="variant"><input type="radio" name="heroVariant" value="twoColumn" /><span class="variant-preview two-column"><b>H1</b><i></i><em></em></span><strong>Two column</strong><small>Content with supporting media</small></label>
+              </div>
+            </article>
+            <div class="section-list">
+              <label><input type="checkbox" name="sections" value="serviceGridSection" /><span><strong>Service grid</strong><small>Service or capability group with structured items.</small></span></label>
+              <label><input type="checkbox" name="sections" value="twoColTextImageSection" /><span><strong>Text + image</strong><small>Rich text body with optional image and CTA.</small></span></label>
+              <label><input type="checkbox" name="sections" value="processSection" /><span><strong>Process</strong><small>Ordered steps with semantic list structure.</small></span></label>
+              <label><input type="checkbox" name="sections" value="serviceAreaSection" /><span><strong>Service area</strong><small>Verified coverage locations with optional map and CTA.</small></span></label>
+              <label><input type="checkbox" name="sections" value="contactSection" /><span><strong>Contact</strong><small>Approved contact details, quick links, and optional map.</small></span></label>
+              <label><input type="checkbox" name="sections" value="blogListSection" /><span><strong>Blog list</strong><small>Latest posts, optionally filtered by an existing category slug.</small></span></label>
+              <label><input type="checkbox" name="sections" value="iconGridSection" /><span><strong>Icon grid</strong><small>Feature, principle, or proof-point group.</small></span></label>
+              <label><input type="checkbox" name="sections" value="leadFormSection" /><span><strong>Lead form</strong><small>Configured lead capture with verified form delivery.</small></span></label>
+              <label><input type="checkbox" name="sections" value="faqSection" /><span><strong>FAQ</strong><small>Question and answer content only.</small></span></label>
+              <label><input type="checkbox" name="sections" value="areasSection" /><span><strong>Areas</strong><small>Structured location links, not a replacement for source verification.</small></span></label>
+              <label><input type="checkbox" name="sections" value="stepsSection" /><span><strong>Steps</strong><small>Sequential instructions where each step has a clear purpose.</small></span></label>
+              <label><input type="checkbox" name="sections" value="ctaSection" /><span><strong>CTA</strong><small>CTA context, primary action, then optional secondary action.</small></span></label>
+              <label><input type="checkbox" name="sections" value="htmlSection" /><span><strong>Approved HTML</strong><small>Restricted to reviewed legal copy or vetted embeds. It is never a page builder.</small></span></label>
+            </div>
+          </div>
+          <aside class="architecture-note"><strong>Content architecture:</strong> optional eyebrow, section heading, optional subtitle, Portable Text body, titled list group, CTA context, primary CTA, optional secondary CTA. The hero owns H1; substantive sections use H2.</aside>
+        </section>
+
+        <section id="save" class="panel save-panel">
+          <div><p class="eyebrow">Create the handoff record</p><h2>Save the intake before development.</h2><p>The file is written to <code>project-docs/clients/&lt;project-slug&gt;/STARTER-INTAKE.json</code>. Do not enter tokens or credentials.</p></div>
+          <button type="submit">Save starter intake</button>
+          <output id="result" aria-live="polite"></output>
+        </section>
+      </form>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

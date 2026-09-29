@@ -56,7 +56,8 @@
     "EV-016: primary, nested treatment, template, and legal starter routes return HTTP 200",
     "EV-017: main navigation uses canonical simple labels and excludes template/legal CMS pages",
     "EV-018: guide route includes the content architecture hierarchy and authoring rules",
-    "EV-019: global footer exposes Content & Section Guide on every page"
+    "EV-019: global footer exposes Content & Section Guide on every page",
+    "EV-020: local-only project starter and visual section catalog verified outside production output"
   ],
   "next_action": {
     "action": "Keep the local preview available for review; run deployment-specific verification only when a deployment is requested",
