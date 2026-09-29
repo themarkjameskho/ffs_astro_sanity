@@ -41,6 +41,7 @@ const PAGE_BY_TYPE_QUERY = groq`
         highlightText,
         subtitle,
         body,
+        bulletsTitle,
         bullets,
         coupon ${COUPON_FRAGMENT},
         ctaText,

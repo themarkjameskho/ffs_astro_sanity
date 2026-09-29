@@ -59,7 +59,8 @@
     "EV-019: global footer exposes Content & Section Guide on every page",
     "EV-020: local-only project starter and visual section catalog verified outside production output",
     "EV-021: launchable homepage guide now has Sanity-hosted two-column hero and full registered component catalog",
-    "EV-022: shared Text + Image section added immediately after the hero on both guide pages"
+    "EV-022: shared Text + Image section added immediately after the hero on both guide pages",
+    "EV-023: hero bullets and Service Grid versus Icon Grid taxonomy verified with image-backed service cards"
   ],
   "next_action": {
     "action": "Keep the local preview available for review; run deployment-specific verification only when a deployment is requested",
@@ -70,5 +71,5 @@
   },
   "last_reconciled_at": "2026-09-29T10:30:00.000Z",
   "created_at": "2026-09-29T08:51:12.066Z",
-  "updated_at": "2026-09-29T11:57:00.000Z"
+  "updated_at": "2026-09-29T12:03:00.000Z"
 }

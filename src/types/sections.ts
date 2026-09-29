@@ -21,6 +21,7 @@ export type HeroSection = BaseSection & {
   highlightText?: string;
   subtitle?: string;
   body?: PortableTextBlock[];
+  bulletsTitle?: string;
   bullets?: string[];
   coupon?: {
     amount?: string;

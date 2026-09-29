@@ -40,6 +40,7 @@ const PAGE_BY_SLUG_QUERY = groq`
         highlightText,
         subtitle,
         body,
+        bulletsTitle,
         bullets,
         coupon ${COUPON_FRAGMENT},
         ctaText,
