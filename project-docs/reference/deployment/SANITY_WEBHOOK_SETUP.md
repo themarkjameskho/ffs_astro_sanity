@@ -34,7 +34,7 @@ Note: this historical deployment note predates the current route model. Dynamic 
 | Field | Value |
 |-------|-------|
 | **Name** | `vercel-revalidate` |
-| **URL** | `https://{{fork_source_slug}}pestcontrol.com/api/revalidate` |
+| **URL** | `https://{{PRODUCTION_DOMAIN}}/api/revalidate` — note `/api/revalidate`, not `/revalidate` |
 | **Events** | Select all three: |
 | | ☑ Create |
 | | ☑ Update |
@@ -43,6 +43,22 @@ Note: this historical deployment note predates the current route model. Dynamic 
 | **HTTP Headers** | Add header: |
 | | Key: `x-vercel-webhook-secret` |
 | | Value: [Your secret from Step 3] |
+| **Dataset** | The single dataset this deployment reads — **not** `* (all datasets)` |
+
+⚠️ **Do not put the secret in Sanity's `Secret` field.** That field HMAC-signs the
+payload into a `sanity-webhook-signature` header. `/api/revalidate` does a plain
+string comparison against the `x-vercel-webhook-secret` header instead, so a secret
+placed in the `Secret` field leaves `x-vercel-webhook-secret` absent and every
+delivery returns **401**. Leave `Secret` empty; use HTTP Headers.
+
+⚠️ **Scope the webhook to one dataset.** The form defaults to `* (all datasets)`.
+Left alone, editing a document in `staging` fires revalidation against the
+production deployment — cache churn now, and a confusing debugging session later.
+
+⚠️ **Check the project before saving the URL.** The Sanity project id is in the
+address bar (`/project/<id>/api/webhooks/new`). Pasting another client's Vercel
+domain here is a silent cross-wire: the webhook returns 200 and revalidates the
+wrong site.
 
 ### Optional - Filter by Type:
 Add this to only revalidate when specific content types change:

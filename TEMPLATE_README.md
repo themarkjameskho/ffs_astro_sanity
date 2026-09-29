@@ -1,30 +1,20 @@
-# FFS Astro + Sanity Template
+# FFS Astro + Sanity Standard Template
 
-A starting point for **any new Astro + Sanity build** — whether it's a from-scratch project or a WordPress migration. Distilled from the Top Bed Bug Pros → HeatTech → Bed Bugs Be Gone Now lineage; every project we ship updates this template with whatever it taught us.
+The official Fast Forward Search starting point for Astro + Sanity marketing websites. It supports a **Fresh Build**, **WordPress Migration**, and **Landing Page/Microsite** track through one shared Sanity-driven component architecture.
+
+Start at [`project-docs/START-HERE.md`](project-docs/START-HERE.md). It defines the required project brief, reference set, design system, content architecture, track-specific evidence, and mandatory gates.
 
 ## What's in the box
 
-- **Astro 5** with `@astrojs/vercel` adapter, `output: 'static'`, ISR enabled (`expiration: 60`)
+- **Astro 5** with `output: 'static'` and `@astrojs/vercel`; CMS routes explicitly opt out with `prerender = false` and are cached through ISR (`expiration: 60`)
 - **Sanity Studio v3** under `studio/` with schemas pre-wired for a section-based content model (Hero, IconGrid, TwoColText/Image, Steps, FAQ, ImageCard, ServiceArea, Areas, LeadForm, HtmlEmbed, etc.)
-- **Section renderer** (`src/components/SectionRenderer.astro`) that maps Sanity section types to Astro components
+- **One canonical section renderer** (`src/components/sections/SectionRenderer.astro`) that maps Sanity section types to Astro components
 - **Form handler** (`src/pages/api/contact.ts`) with Cloudflare Turnstile verification and webhook forwarding
 - **ISR revalidation** API (`src/pages/api/revalidate.ts`) for Sanity webhook → instant content updates
 - **MainLayout** with mast-bar, header nav + drawer, footer pre-CTA, footer NAP block, JSON-LD schema, GA4 idle-defer, CallRail body-mount with `is:inline`
 - **Neutral starter palette** in `src/styles/tokens.css` (slate blue + green CTA + red accent) — meant to be replaced per project
 - **Wordpress→Sanity import script** under `scripts/` (idempotent on slug)
 - **Project docs** under `project-docs/Astro-Sanity Process/` — playbook, deployment runbook, dev-to-live workflow, brand intake questionnaire
-
-## Companion: the `astro-sanity-migration` Cowork plugin
-
-This template pairs with a Cowork plugin that walks you through every phase from brand intake to launch. **Install it before starting a new project:**
-
-```bash
-# Inside Claude Code or Cowork, with the plugin .plugin file available:
-unzip ~/Downloads/astro-sanity-migration.plugin -d ~/.claude/plugins/astro-sanity-migration
-# Then quit + reopen Cowork
-```
-
-The plugin gives you four skills (brand-intake → migration → deploy → pagespeed) and three agents (fork-cleanup-auditor, url-inventory-builder, deploy-verifier). They auto-trigger on natural-language phrases like "brand discovery" / "DNS cutover" / "verify the deploy."
 
 ## How to start a new project from this template
 
@@ -48,19 +38,15 @@ cd studio && npm install && cd ..
 npm run dev
 ```
 
-In Cowork, kick off the conversation with:
-
-> *"I'm starting brand discovery for a new {{INDUSTRY}} client"*
-
-The `astro-sanity-brand-intake` skill will walk you through Phases 1–4 of the design system. By the time it finishes, you have a populated `tokens.css`, a defined button system, and contrast-audited colors — all signed off before the first component edit.
+Before component work, complete the Fresh Build readiness inputs in `project-docs/tracks/FRESH-BUILD.md`: project brief, reference set, design system, and content/component map.
 
 ### Path B — Migrating from WordPress
 
-Same start (Path A steps 1–4), then in Cowork say:
+Same start (Path A steps 1–4), then follow `project-docs/tracks/WORDPRESS-MIGRATION.md` and `project-docs/Astro-Sanity Process/wordpress-to-astro-migration.md` before changing content or redirects.
 
-> *"I'm migrating an existing WordPress site at https://existing-wp-site.com to this template"*
+### Path C — Landing page or microsite
 
-The `astro-sanity-migration` skill activates and runs you through Phases A–H: pre-migration intake, URL inventory, fork cleanup (n/a for fresh templates but still scanned), content migration, redirect map, parity audit, DNS cutover, post-cutover verification.
+Follow `project-docs/tracks/LANDING-PAGE.md`. It uses the same Sanity page documents, renderer, shared components, forms, and design tokens—not a custom one-page template.
 
 ## Placeholders this template uses
 

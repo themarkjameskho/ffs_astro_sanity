@@ -67,7 +67,7 @@ After adding the environment variable:
 | Field | Value |
 |-------|-------|
 | **Name** | `vercel-revalidate-prod` |
-| **URL** | `https://{{fork_source_slug}}pestcontrol.com/api/revalidate` |
+| **URL** | `https://{{PRODUCTION_DOMAIN}}/api/revalidate` |
 | **HTTP Method** | `POST` |
 | **Events** | ☑ Create, ☑ Update, ☑ Delete |
 | **Include drafts** | ☑ Yes (optional) |

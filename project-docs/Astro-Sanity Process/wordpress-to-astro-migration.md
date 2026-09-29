@@ -1,385 +1,495 @@
 # WordPress → Astro + Sanity Migration Playbook
 
-This is the migration-specific companion to `astro-sanity-development-process.md`. AI agents and developers must use it together with `project-docs/LIFECYCLE-CHECKLIST.md` for every WordPress → Astro + Sanity migration. Run this **before** Phase 6 (Astro Feature Development) of the main process — ideally during Phase 1 (Discovery), so the URL inventory and redirect map drive scope, and the parity audit drives the QA exit criteria. The checklists below are derived from the {{BRAND_ABBREV}} rebuild (May 2026), which was forked from an earlier {{FORK_SOURCE_PROJECT}} codebase and migrated from a WordPress + Cloudways stack to Astro + Sanity + Vercel.
+**v2.2 — August 2026. v2.0 was rewritten from the Bed Bug BBQ migration (459 documents, 1,501
+media files, 296 redirects) and from what went wrong on Chapman; v2.1 adds everything the staging
+verification then surfaced, in Phase J; v2.2 adds Phase H2 (merge-aware seeding over earlier work)
+and the seventh top-level failure mode, from Chapman's 2026-08-11 seed-package work — where a
+"correct" plan would have silently destroyed 81 already-migrated blog bodies.** v1.0 was written
+from the BBBQ *rebuild* and described the shape of the work correctly but not the traps. Every "⚠️"
+below is something that actually bit us, with the fix that worked.
 
-## Why this exists as its own phase
-
-A from-scratch Astro project follows the standard 11-phase playbook. A migration from a live WordPress site adds five concerns the standard playbook does not cover:
-
-1. **Inherited-fork cleanup.** If the new build is a fork of another Astro site (we forked {{FORK_SOURCE_PROJECT}}), it carries that site's analytics tags, tracking snippets, brand copy, and even hardcoded domains. None of those are valid for the new client.
-2. **URL inventory and parity.** The live WordPress site has indexed URLs Google relies on. Every one needs to either exist on the new site or have a 301 redirect, or you lose rankings.
-3. **Content migration.** WordPress pages + blog posts need to move into Sanity without breaking image references, slug structure, or publish dates.
-4. **DNS cutover.** The live domain is currently pointing at the WordPress host (e.g., Cloudways at 216.150.x.x). Pointing it at Vercel is a one-shot operation with a real chance of breaking the site if the apex A record vs CNAME interaction is mis-configured (we hit this exact bug — `apex CNAME` was winning over an attempted `A` record).
-5. **Third-party drop-ins.** Forms, CallRail, GA, reviews widgets, push-notification SDKs, etc. — all need to be re-wired to the new tags/keys, not the inherited fork's.
-
-## Outline
-
-1. Pre-migration intake (fork audit + access)
-2. Discovery & URL inventory
-3. Inherited-fork cleanup
-4. Content migration (WordPress XML → Sanity)
-5. Redirect map
-6. Parity & QA audit
-7. DNS cutover
-8. Post-cutover verification
+Use this together with `project-docs/LIFECYCLE-CHECKLIST.md`. The single most important change from
+v1.0: **the gates are now measurements, not opinions.** Every phase ends in a number you can check,
+because on Chapman the failure was invisible until a developer clicked a sub-page and got a 404.
 
 ---
 
-## Phase A – Pre-Migration Intake
+## The five things that actually go wrong
 
-**Goals**
-- Identify which assets we're inheriting (codebase, content, third-party accounts) and which are new.
-- Get every credential needed before any code is touched.
+If you read nothing else, read this. Four of the five are silent — the build passes, the site
+deploys, and the damage only shows up in Search Console weeks later.
 
-**People & Roles**
-- Project Owner (provides client accounts), Senior Developer, Account Manager / Client Success.
+**1. Sub-page URLs 404 while main pages work.** Sanity's default slugify collapses `/` to `-`, so a
+nested slug typed as `services/water-heater-repair` is stored as `services-water-heater-repair`. The
+catch-all route looks a page up by its **full path**, so the hyphenated slug can never match.
+Single-segment slugs survive slugify unchanged, which is why main pages look fine and only sub-pages
+break. **This blocked Chapman for days.** Fix: `pathSlugify` in
+`studio/schemaTypes/utils/slugValidation.ts`, wired into every nestable slug field, then redeploy the
+Studio. Schema changes don't reach editors until `sanity deploy`.
 
-**Inputs**
-- Client list of: domain name(s), Cloudflare / DNS account, hosting account (Cloudways/WP Engine/etc.), Google Analytics property ID, CallRail company ID, n8n / Zapier / HubSpot webhook URL, Sanity organization, any existing fork repo.
+**2. Post URLs get silently relocated to `/blog/`.** `blogPost` documents are only reachable through
+`src/pages/blog/[slug].astro`, so if the WordPress originals lived at the root, every one of them
+404s. The wrong fixes are to import posts as `page` documents (keeps the URL, destroys the post
+model) or to accept `/blog/` (keeps the model, breaks every URL). Fix: make the URL a property of the
+document — see "Post URLs" below.
 
-**Step-by-Step Checklist**
-1. **Get credentials in writing.** Create a private 1Password (or equivalent) vault for the project. Required entries before coding starts:
-   - GitHub repo + collaborator invites
-   - Sanity project ID + admin invite
-   - Vercel project + admin invite
-   - Cloudflare DNS access
-   - Google Analytics property (with new measurement ID)
-   - CallRail company ID + swap snippet
-   - Form-handler webhook URL (n8n, Zapier, HubSpot, etc.)
-   - WordPress / Cloudways admin (for content export)
-2. **Determine the source repo.** If forking an existing Astro+Sanity project, record both the source URL and the commit SHA being forked. Note known-inherited items in `project-docs/Astro-Sanity Process/requirements.md` so they're caught in Phase C.
-3. **Document the WordPress baseline.** Pull `sitemap.xml`, `robots.txt`, and the HTML of the home page + 5 representative inner pages. Save raw copies under `project-docs/archive/wordpress-baseline/` so the new build's parity can be diffed against them later.
-4. **Verify owner authority.** Confirm the client (not the prior agency) owns the domain registrar, the DNS zone, the analytics property, and the form webhook. Migrations stall when the prior agency still holds keys.
+**3. Inherited links point at pages that don't exist.** A repo forked from another client ships that
+client's hardcoded hrefs in `src/data/navigation.ts` and `ServiceAreaSection.astro`. They render, they
+look real, and they 404. Bed Bug BBQ was still shipping BBBGN's Tulsa city links weeks in.
 
-**Deliverables**
-- Credential vault populated with every entry listed above.
-- WordPress baseline archived under `project-docs/archive/wordpress-baseline/`.
-- Source-fork commit SHA recorded in `requirements.md`.
+**4. `studioHost` belongs to another client.** `studio/sanity.cli.js` ships with the previous
+client's `*.sanity.studio` hostname. Running `sanity deploy` without checking targets **their live
+Studio**. Check `grep studioHost studio/sanity.cli.js` before every first deploy.
 
-**Exit Criteria**
-- A new developer can log into every system from the credential vault alone.
-- The baseline HTML snapshot + sitemap exist on disk.
-- Client has confirmed ownership of domain, DNS, analytics, and webhook.
+**5. The layout crashes on every page.** `MainLayout.astro` references `brandLogoPath` in the
+`og:image` and `twitter:image` tags, and that variable is defined nowhere — the computed value is
+`absoluteLogoUrl`. Every render throws `ReferenceError`, so *nothing* works and it looks like a
+catastrophic import failure. It ships in the template. Fix both references before the first page load.
 
----
+**6. Redirects that destroy live pages.** A WordPress redirect export will contain rules whose
+*source* is a currently-published page — including self-redirects. Inert on WordPress; in
+`vercel.json` a self-redirect is an infinite loop and the rest 301 live pages into oblivion. Always
+validate redirect sources against the published-URL set.
 
-## Phase B – Discovery & URL Inventory
-
-**Goals**
-- Produce a definitive list of every URL on the WordPress site, classified into KEEP / RENAME / RETIRE.
-- Use that list to size the Sanity content model and the redirect map.
-
-**People & Roles**
-- Senior Developer, Content Strategist, SEO Specialist (optional).
-
-**Inputs**
-- WordPress `sitemap.xml` + paginated sitemaps (most sites split into post-sitemap, page-sitemap, category-sitemap).
-- GA traffic export (last 90 days) so KEEP/RETIRE decisions are data-informed.
-
-**Step-by-Step Checklist**
-1. **Fetch every sitemap variant.** WordPress sitemaps are usually split (`post-sitemap1.xml`, `page-sitemap.xml`, `category-sitemap.xml`, `service-area-sitemap.xml`). Pull them all.
-2. **Build a single CSV** under `project-docs/reference/deployment/` with columns: `url, type, last_modified, ga_pageviews_90d, decision (KEEP|RENAME|RETIRE), new_slug, redirect_target`.
-3. **Flag duplicate-slug fossils.** WordPress generates `-2` slugs when a duplicate is created and never cleaned up (we hit `/service-area/kenosha-wi-2/`). Add 301 entries for these to the canonical slug.
-4. **Flag taxonomy URLs that don't survive.** WordPress `/category/*` and `/tag/*` pages don't map to Sanity by default. Decide once: either rebuild them as Sanity-backed pages, or 301 the whole subtree to `/blog/`.
-5. **Cross-check against the live HTML.** Run `curl -s https://<site>/ | grep -oE 'href="[^"]+"'` on the top 10 pages by traffic and verify every internal link in that output is either in the inventory or 301'd.
-6. **Decide canonical paths.** WordPress sites often have both trailing-slash and non-trailing-slash variants reachable. Pick one (Astro defaults to trailing-slash, which we use) and add the other side to the redirect map.
-
-**Deliverables**
-- `project-docs/reference/deployment/url-inventory.csv` (or similar) with all live URLs classified.
-- `project-docs/reference/deployment/{{BRAND_ABBREV}}_REDIRECTS.md`-style document listing every 301.
-
-**Exit Criteria**
-- Every URL with ≥1 GA pageview in the last 90 days has a `decision` value (no blanks).
-- Duplicate `-2` slugs, taxonomy URLs, and pagination URLs are all decided.
-- The redirect map is reviewed by the SEO lead (or client) before any `vercel.json` redirects are written.
+**7. Your own earlier import is already in the dataset — and re-seeding erases it.** Migrations run
+across many sessions, and earlier sessions leave real work behind as drafts. On Chapman the dataset
+held **270 drafts** the current plan knew nothing about, including 81 blog posts whose ~20 KB
+Portable Text bodies and featured images came from an earlier *approved* body-migration run. The
+current plan's posts were metadata-only (`content: []`), so a createOrReplace seed would have wiped
+every body — with a green log, because replacing a draft is not an error. Separately, five planned
+routes were already owned by drafts under **different ids**, so seeding would have shipped two
+documents per URL. Fix: Phase H2 — diff the plan against existing drafts per document before any
+write, seed with explicit per-document actions, and check **route** collisions, not just id
+collisions.
 
 ---
 
-## Phase C – Inherited-Fork Cleanup
+## Phase A — Intake and exports
 
-**Goals**
-- Strip every brand, tracking, copy, and domain reference from the source fork. Leave nothing that could fire analytics into the wrong property or display the old brand name.
+**Ask for three exports, not one** (WP Admin → Tools → Export): **All content**, **Redirections**,
+and **Schemas** if the client runs SEOPress Pro. Expect surprises in the latter two — on Bed Bug BBQ
+the Schemas export was *empty* (all 67 values were the serialized-empty `a:0:{}`), and the
+Redirections export turned out to be a subset: three more redirects were stored as postmeta on
+regular pages. Extract from both and merge.
 
-**People & Roles**
-- Senior Developer, AI agent (for grep-and-replace passes).
+**Do not use the Media export for media.** It is images-only and silently omits PDFs. Bed Bug BBQ
+lost three PDFs that were live download links on four published pages. Ask instead for the
+`wp-content/uploads/` folder copied wholesale, preserving the `YYYY/MM` structure.
 
-**Inputs**
-- The forked codebase + the source-fork brand name (e.g., "{{FORK_SOURCE_PROJECT}}").
-- New client's brand tokens, analytics measurement ID, CallRail company ID, webhook URL, domain name.
+**Commit the WXR gzipped.** A 25 MB export gzips to ~2.3 MB, which is small enough to live in git and
+makes the whole import reproducible for anyone who clones. `lib/wxr-source.mjs` reads `.xml.gz`
+directly, so nobody has to remember to extract it. Put it in
+`project-docs/archive/wordpress-baseline/`.
 
-**Step-by-Step Checklist**
+**Credentials.** You need far less than v1.0 claimed. The import needs **only** a write-scoped
+`SANITY_API_TOKEN`. You do **not** need a WP application password — the WXR replaces the REST API —
+and you do not need the ISR or form webhooks until QA. When you do reach QA, the ISR webhook is
+three steps and two traps — `openssl rand -hex 32`, the value into Vercel as
+`SANITY_WEBHOOK_SECRET` and into Sanity as a custom `x-vercel-webhook-secret` header (**not** the
+`Secret` field, which signs a different header and 401s), scoped to one dataset. See
+[SANITY_WEBHOOK_SETUP.md](../reference/deployment/SANITY_WEBHOOK_SETUP.md).
 
-> ⚠️ **This is where migrations silently leak.** Inherited GA tags send your traffic into the prior client's property. Inherited CallRail snippets route calls to the prior client's phone tracking. Both bugs were live in {{BRAND_ABBREV}} until we audited.
+⚠️ **Values pasted inside `{{ }}` braces.** Placeholders get filled by pasting the real value
+*between* the braces, so the line reads `SANITY_API_TOKEN={{sk…}}`. The value is right and every
+request 401s. This happened three times on one repo. Before reporting anything as "not provided",
+check whether the braces contain something other than a SCREAMING_SNAKE name. Run
+`node scripts/check-sanity-token.mjs` — it checks brace-wrapping, read auth, and whether the token
+actually has **write** scope via a `dryRun` mutation that creates nothing.
 
-1. **Grep for the source brand.** Search every file under `src/`, `studio/`, `scripts/`, and `project-docs/`:
-   ```bash
-   grep -rni "<source-brand>" --include="*.{astro,ts,tsx,mjs,md,json,css}" .
-   ```
-   Replace with the new brand name. Re-grep until clean.
-2. **Grep for the source domain.** Same search for hardcoded fork domain (e.g., `{{fork_source_slug}}pestcontrol.com`). Replace with the new domain in canonical URLs, OG images, sitemap URLs, schema.org JSON-LD, etc.
-3. **Replace the GA4 measurement ID.** In `MainLayout.astro` (or wherever `gtag` is loaded), swap to the new property. **Verify in DevTools after deploy** that `gtag/js?id=G-NEW-ID` loads. Leave a code comment naming the old + new IDs and a "do not revert" warning — we hit a near-revert twice on {{BRAND_ABBREV}}.
-4. **Replace the CallRail snippet.** Get the new company ID + swap key from the client's CallRail dashboard. Place the snippet **before `</body>`, not in `<head>`** — CallRail's account-side verifier doesn't detect head-mounted snippets. Add `is:inline` to the script tag so Astro doesn't strip it at build time (see "Astro `is:inline` gotcha" in `dev-to-live-workflow.md`).
-5. **Replace the form webhook.** Update `AUTOMATION_WEBHOOK_URL` in `.env` AND in Vercel project env vars. If the form handler uses an `X-Forwarded-By` header (or similar), rename it to the new brand. Submit a real test entry and confirm it lands in n8n/Zapier with the new identifier.
-6. **Replace mast-bar / hero / footer copy.** Source-fork copy ("Single-day {{FORK_SOURCE_PROJECT}} · 30-day re-treat free") leaks into the top bar, hero, footer pre-CTA, and meta descriptions. Search Sanity content as well — not just code.
-7. **Replace favicon + brand mark.** Drop new `favicon.png` (and any high-res variant) into `public/`. Cache-bust the link with `?v=N` in `MainLayout.astro` because browsers cache favicons aggressively.
-8. **Replace the `/src/assets/favicon.png` or any other source-fork shield/logo** sitting in `src/assets/`. Forks tend to leave these around.
-
-**Deliverables**
-- A grep-clean codebase: no references to the source-fork brand, domain, GA ID, or CallRail company ID remain.
-- Verified live deploy showing the new GA + CallRail loading in DevTools Network tab.
-
-**Exit Criteria**
-- `grep -rni "<old-brand>\|<old-domain>\|G-<old-GA-id>\|companies/<old-callrail-id>" .` returns zero matches outside `project-docs/archive/`.
-- A test phone call through the new CallRail swap-number shows up in CallRail's dashboard.
-- A test form submission lands in the new webhook destination, not the old one.
+**Exit:** three exports on disk, WXR gzipped and committed, token check passes clean.
 
 ---
 
-## Phase D – Content Migration (WordPress XML → Sanity)
+## Phase B — Baseline audit
 
-**Goals**
-- Move WordPress pages and blog posts into Sanity without losing image references, slugs, publish dates, or categories.
+Produce four artifacts in `project-docs/archive/wordpress-baseline/`. All four are inputs to later
+phases, and all four are cheap compared to discovering the same facts by hand.
 
-**People & Roles**
-- Senior Developer, Content Editor (for QA sweep).
+`url-inventory.csv` — every URL with type, page-type classification, lastmod, and a
+KEEP/RENAME/RETIRE decision. `existing-redirects.csv` — every redirect with hit counts, sorted by
+traffic, with a `target_status` column. `seo-meta.csv` — the SEOPress title, description and target
+keyword per URL; Bed Bug BBQ recovered these for **463 URLs**, which is the difference between
+porting meta like-for-like and rewriting it. `media-manifest.json` — every attachment reconciled
+against the local files, carrying alt text.
 
-**Inputs**
-- WordPress XML export (`Tools → Export → All Content`).
-- Sanity project ID + a write-scoped API token.
+⚠️ **Do not trust the live sitemap as the URL inventory.** Bed Bug BBQ's sitemap listed 146 of 337
+published posts and 60 of 125 pages. It was not noindex — zero pages carried the flag. It was a
+**lastmod cutoff**: every entry had been modified after a certain date, and everything older was
+simply absent, a SEOPress sitemap cache that never regenerated. Count from the WXR, always, and treat
+a sitemap/WXR mismatch as a finding to report rather than a discrepancy to reconcile.
 
-**Step-by-Step Checklist**
-1. **Export from WordPress.** WP Admin → Tools → Export → All Content → Download Export File. Save the `.xml` under `project-docs/archive/wordpress-baseline/`.
-2. **Audit before import.** Open the XML and confirm: (a) post count matches WP's "All Posts" view, (b) `<wp:post_status>` includes both `publish` and `draft` only if you want both migrated, (c) image URLs in `<content:encoded>` are absolute (they need to be downloadable from your dev machine).
-3. **Write a one-shot import script** under `scripts/` (do **not** make it a long-lived service). The script:
-   - Parses the XML
-   - Downloads referenced images to Sanity via the asset API
-   - Creates Sanity `blogPost` (or `page`) documents with slug, title, body (as portable text), publish date, categories
-   - Idempotent on slug — running twice updates instead of duplicating
-4. **Dry-run on staging dataset first.** Run with `--dataset=staging` or equivalent flag. Spot-check 5 posts in Sanity Studio. Verify body renders, images embed, slugs match.
-5. **Promote to production dataset** only after the staging spot-check passes. Record the run with `submittedAt` so you can roll back by deleting documents created on that date.
-6. **Re-render every imported post** through the Astro template at `localhost:4321/blog/<slug>/` and compare against the WordPress version. Fix any block types your portable-text serializer doesn't handle (we missed inline-image sizing on first pass — fix it in `src/lib/portableText.ts`).
-7. **Gate raw HTML fallbacks.** Run `npm run report:html-sections`. Treat `htmlSection` as a migration safety valve only: convert each block to a standard section unless it is legal copy or an approved third-party embed.
-8. **Check unique page copy.** Location/service pages need genuinely distinct intros and examples, not city-name-only rewrites.
-
-**Deliverables**
-- Idempotent import script under `scripts/`.
-- All blog/page documents present in Sanity production dataset with matching slugs.
-
-**Exit Criteria**
-- Sanity post count equals the WordPress baseline post count (or differs by an explicit, documented exclusion list).
-- Random-sample 5 blog URLs render in Astro with images intact and identical to WP.
-- Slugs are unchanged from WP (or every changed slug has a redirect in Phase E).
-- No unreviewed `htmlSection` blocks remain on launch pages.
+**Exit:** all four CSVs exist; published page and post counts come from the WXR and are stated
+explicitly; any sitemap gap is quantified.
 
 ---
 
-## Phase E – Redirect Map
+## Phase C — Inherited-fork cleanup
 
-**Goals**
-- Every WordPress URL with traffic continues to resolve on the new site, either natively or via 301.
+Everything in v1.0 still applies — GA, CallRail, brand copy, domains — plus two additions.
 
-**People & Roles**
-- Senior Developer, SEO Specialist (optional).
+**Replace hardcoded link arrays with one data module.** `src/data/navigation.ts` and
+`ServiceAreaSection.astro` carry the source fork's hrefs. Don't patch them in place; derive the real
+list from the URL inventory into a single `src/data/serviceArea.ts` that nav and sections both read
+from, so the links can't drift apart again.
 
-**Inputs**
-- URL inventory from Phase B.
-- The decided canonical-trailing-slash convention.
+**Rebrand the Studio, not just the site.** `sanity.cli.js` (`studioHost`), `sanity.config.ts`
+(`name`, `title`, `subtitle`) and `studio/package.json` all carry the previous client's identity.
 
-**Step-by-Step Checklist**
-1. Add redirects to `vercel.json` under `"redirects": [...]`. Use 301 (permanent). Wildcard patterns for taxonomies (`/category/:path*` → `/blog/`).
-2. Group redirects by category in the JSON so future edits don't conflict: brand rename redirects, duplicate-slug redirects, taxonomy redirects, manual one-offs.
-3. Document every redirect in `project-docs/reference/deployment/{{BRAND_ABBREV}}_REDIRECTS.md` (or equivalent), with: source URL, destination URL, reason, decision-maker.
-4. **Test the redirect chain.** After deploy:
-   ```bash
-   for url in $(cat redirect-test-urls.txt); do
-     echo -n "$url → "
-     curl -sIL "$url" | grep -E "^(location|HTTP)" | tail -2
-   done
-   ```
-   Every old URL should respond with `HTTP/2 308` (Vercel's 301 equivalent) then `200` at the final URL.
-5. **Avoid redirect loops.** If `/foo` redirects to `/foo/`, make sure `/foo/` doesn't redirect back to `/foo`. Astro's `trailingSlash: 'always'` handles this if you let it.
+⚠️ **Fix `MainLayout.astro`'s `brandLogoPath` before anything else.** It is an undefined variable
+used twice in the social meta tags; `absoluteLogoUrl` is the value intended. Until it is fixed every
+route throws and no other verification means anything.
 
-**Deliverables**
-- `vercel.json` updated with the full redirect map.
-- `project-docs/reference/deployment/{{BRAND_ABBREV}}_REDIRECTS.md` documenting every entry.
+⚠️ **`sanity.cli.js` only loads `../.env`.** If the repo uses `.env.local`, the Studio throws
+"Missing SANITY project configuration" on deploy. Load both.
 
-**Exit Criteria**
-- Every URL in the Phase B `KEEP` and `RENAME` categories returns 200 (directly or via redirect).
-- Every URL in the `RETIRE` category returns 301 → `/blog/` or `/` (no 404s for URLs that previously had traffic).
-- No redirect loops detected by the test command above.
+**Exit:** `grep -rniE '<old-brand>|<old-domain>|G-<old-GA>' src studio public` returns nothing;
+`grep studioHost studio/sanity.cli.js` names *this* client; no hardcoded city or service links remain
+outside a data module.
 
 ---
 
-## Phase F – Parity & QA Audit
+## Phase D — Block mapping
 
-**Goals**
-- Confirm the new Astro site has equivalent or better content, SEO signals, and analytics than the WordPress site — **before** you swap DNS.
+**Two rules, both non-negotiable.** No new section schema — route everything to the 14 types already
+registered in `studio/schemaTypes/documents/page.ts`. And **`htmlSection` is for embedding
+something**, never a fallback: if a block doesn't resolve to a real component, either the detection
+rule is wrong or the block is WordPress chrome that should be **dropped**.
 
-**People & Roles**
-- Senior Developer, QA Lead, Content Editor, Project Owner.
+⚠️ **Read the object schemas before claiming a section type is missing.** The instinct to add a
+`textSection` for prose bands is wrong: `twoColTextImageSection` already has a portable-text
+`description`, `bulletTitle`, six background themes, an `imagePlacement` toggle and h2/h3 heading
+levels. Its `images` field is `required().min(1)`, so a prose band needs a **placeholder image** —
+attach one shared asset, never one per section, and alternate `imagePlacement` while cycling
+`backgroundTheme` so consecutive bands don't look identical.
 
-**Inputs**
-- New site on a Vercel preview URL (e.g., `{{VERCEL_PREVIEW_DOMAIN}}`).
-- WordPress live site (still on `{{SITE_DOMAIN}}`).
-- URL inventory + redirect map from Phases B and E.
+⚠️ **The mapper that ships with the template was written against an older schema.** It emits
+`heroSection.primaryCta{label,href}` where the schema has `primaryCtaLabel`,
+`twoColTextImageSection.image` + `imagePosition` where the schema has `images[]` + `imagePlacement`,
+`ctaSection.primaryCta` where the schema has `primaryButton{label,link,style}`, and
+`faqSection.items` where the schema has `faqs`. Documents built that way lose content silently.
+Verify every field name and enum value against the schema files.
 
-**Step-by-Step Checklist**
-1. **Fetch both sitemaps and diff them.** WordPress live vs Astro preview. Every URL on the live should either exist on the new site or be in the redirect map. Use:
-   ```bash
-   curl -s https://<live-wp>/sitemap.xml | grep -oE '<loc>[^<]+' | sort > wp.txt
-   curl -s https://<preview>/sitemap.xml | grep -oE '<loc>[^<]+' | sort > new.txt
-   diff wp.txt new.txt
-   ```
-2. **Verify GA + CallRail are firing on the preview.** Load the preview URL → DevTools → Network tab → reload. Confirm `gtag/js?id=G-<NEW>` and `cdn.callreports.com/companies/<NEW>` both have status 200.
-3. **Run PageSpeed on 3 representative URLs** (homepage, a service-area page, a blog post). Record scores in `quality-matrix.md`. Mobile ≥ 85 and Desktop ≥ 95 are realistic targets when CallRail + GA are loaded; document the polyfill-floor anything below 90 is hitting.
-4. **Test the form end-to-end.** Submit a test entry. Confirm it lands in n8n/Zapier with the new `X-Forwarded-By` (or equivalent) identifier. If Turnstile is on the form, also test the "submit without checking" path returns the friendly error message.
-5. **Click every nav + footer link.** Easy to forget after content migration; an inherited fork's footer often has the old client's NAP (name/address/phone).
-6. **Verify schema.org JSON-LD.** Run Google Rich Results test on the homepage. Local business name, phone, address, services should all match the new client.
-7. **Verify favicon, OG image, theme-color meta.** Open in social previewers (linkedin.com/post-inspector, dev.twitter.com card validator).
+⚠️ **Detection order is load-bearing**, because most patterns are supersets of simpler ones. Test in
+this order: drop chrome → real embed → real form block → map/contact → accordion → tabs → hero
+(`h1` + bg or button) → post feed → areas → reviews → enumerated steps → icon grid → service grid →
+2-col with image → CTA → prose with placeholder → drop empties. **If CTA is tested before hero, every
+hero on the site lands in the wrong component.**
 
-**Deliverables**
-- Parity audit report (markdown ok) noting any discrepancies and their resolution.
-- PageSpeed scores recorded in `quality-matrix.md`.
+Three counting rules that change the numbers by multiples. **Collapse consecutive bare top-level
+blocks** (paragraph, heading, list) into one section — without it, Bed Bug BBQ's 841-section import
+measured 5,213 and `twoColTextImageSection` looked like 86% of the site. **WordPress omits the `core/`
+namespace** in block comments, so normalise `paragraph` → `core/paragraph` or the collapsing never
+fires. And **require real enumeration for `stepsSection`** — matching bare words like "process" or
+"inspection" dragged 148 ordinary prose bands in, because that vocabulary is everywhere in
+pest-control copy.
 
-**Exit Criteria**
-- Sitemap diff resolves to: every WP URL is either in the new site or in the redirect map.
-- Form submission confirmed in the new webhook destination.
-- GA + CallRail confirmed loading on preview.
-- Project Owner has signed off on side-by-side comparison.
+**Drop WordPress chrome rather than migrating it.** `[seopress_breadcrumbs]` shortcodes, empty
+rowlayouts and spacers. Migrating breadcrumbs ships a duplicate trail on top of the layout's own.
 
----
-
-## Phase G – DNS Cutover
-
-**Goals**
-- Swap the live domain from WordPress to Vercel cleanly. Site stays up the entire time.
-
-**People & Roles**
-- Senior Developer (executes), Project Owner (notified, on standby).
-
-**Inputs**
-- Cloudflare (or other) DNS access.
-- Vercel project with the production domain claimed but not yet pointing at it.
-- Active business hours window — schedule the cutover when sales are quiet (early morning, weekend morning).
-
-**Step-by-Step Checklist**
-
-> ⚠️ **DNS bugs that bit us on {{BRAND_ABBREV}}.** Cloudflare's CNAME flattening at the apex caused our `A` record to be silently ignored when a `CNAME` also existed at apex. Vercel's "let Vercel manage DNS" auto-config kept trying to *re-add* the broken CNAME after we deleted it. Read both warnings below before touching DNS.
-
-1. **Pre-flight check.** Confirm:
-   - The new site is fully Phase F sign-off.
-   - The current WordPress site is unchanged — no last-minute content changes to migrate.
-   - Cloudflare's proxy (the orange cloud) state on your existing records, so you can match it.
-2. **In Vercel:** Project → Settings → Domains → add the production domain (e.g., `{{SITE_DOMAIN}}` + `www.{{SITE_DOMAIN}}`). Vercel will tell you the target it expects (`76.76.21.21` for apex via A; `cname.vercel-dns.com` for www via CNAME).
-3. **In Cloudflare DNS:**
-   - **Delete any existing apex `CNAME` record.** If you skip this, Cloudflare's CNAME flattening will keep serving the old target.
-   - Add an `A` record at apex (`@`) pointing to `76.76.21.21`. Match the existing proxy state.
-   - Confirm `www` is a `CNAME` to `cname.vercel-dns.com`. If it already pointed to the WP host, replace it.
-4. **Decline Vercel's "let us manage your DNS" prompt** if it appears. We hit this exact loop: Vercel kept proposing to "fix" our DNS by replacing the working `A` record with the broken `CNAME` setup it preferred. Cancel that dialog every time it shows.
-5. **Flush local DNS cache** before testing:
-   ```bash
-   sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder
-   ```
-6. **Verify the swap propagated.** From your machine:
-   ```bash
-   dig <domain> +short
-   # Expect: 76.76.21.21 (or a Vercel edge IP)
-   ```
-   From a third-party resolver (Google):
-   ```bash
-   dig <domain> @8.8.8.8 +short
-   ```
-   Both should match. If `dig` still returns the WP IP after 15 minutes, suspect a CNAME you missed at apex.
-7. **Open the live URL in an incognito window.** Confirm it shows the new Astro site, not the WP site.
-
-**Deliverables**
-- Working live site on the new domain.
-- DNS-cutover entry in `deployment.md` deployment log.
-
-**Exit Criteria**
-- `dig <domain>` from two resolvers returns Vercel's edge.
-- Live URL loads the new Astro site without "Vercel: site not configured" or "Cloudways: site not found" errors.
-- HTTPS certificate is valid (Vercel auto-provisions Let's Encrypt — usually within 60 seconds).
+**Exit:** a dry-run report showing zero fallbacks, how many of the 14 components are used, how many
+distinct variants are exercised, and what was dropped and why. Report component spread as a quality
+metric — a mapping that only touches three components produces monotonous pages.
 
 ---
 
-## Phase H – Post-Cutover Verification
+## Phase E — Slugs and post URLs
 
-**Goals**
-- Confirm everything that should be tracking the new client *is* tracking the new client, and nothing is leaking back to the old config.
+This is the phase v1.0 didn't have, and the one that cost Chapman the most time.
 
-**People & Roles**
-- Senior Developer, Marketing Lead (for analytics validation), Client (for first lead test).
+**Every page slug is the FULL path.** `locations/cleveland-ohio/parma-bed-bug-exterminator`, not
+`parma-bed-bug-exterminator`. `fetchPageBySlug` only tries slash-position variants of the whole path
+— never the last segment — so a short slug can never resolve. Add `pathSlugify` to every nestable
+slug field so typing *and* the Generate button both preserve slashes, then **redeploy the Studio**.
 
-**Inputs**
-- Live site on the new domain.
-- Access to GA, CallRail, and the form-webhook destination.
+**Post URLs belong to the document, not the route.** When the originals lived at the root, keep them
+there and keep them as `blogPost` documents:
 
-**Step-by-Step Checklist**
-1. **Hard-refresh the live URL** in incognito. Open DevTools → Network tab → reload. Look for and confirm status 200 on:
-   - `cdn.sanity.io/...` (content fetched from Sanity)
-   - `cdn.callreports.com/companies/<NEW-ID>/.../swap.js`
-   - `js.callreports.com` (form tracker)
-   - `www.googletagmanager.com/gtag/js?id=G-<NEW>`
-   - `challenges.cloudflare.com/turnstile/v0/api.js` (if Turnstile is on)
-2. **Confirm no old IDs are loading.** Grep the Network tab (or `curl | grep`) for the previous client's GA ID or CallRail ID. If anything matches, you missed a file in Phase C.
-3. **Phone-call test.** Dial the swap number shown on the live site from an unrecognized phone. Wait 2 minutes, then check the new CallRail dashboard for the call record. If it's missing, CallRail isn't loading (re-verify the script is in `<body>` with `is:inline`).
-4. **Form test.** Submit a real (test) entry. Verify it lands in the new n8n/Zapier with the new `X-Forwarded-By` header.
-5. **GA Realtime test.** Open analytics.google.com → Realtime → confirm your incognito visit shows up under the new property within 30 seconds.
-6. **Re-run PageSpeed** on the live URL (now it gets real Core Web Vitals from field data). Record the post-cutover scores in `quality-matrix.md`.
-7. **Submit the new sitemap** to Google Search Console under the migrated property (or set up a new property if the WP one was under a different ownership).
+The catch-all `[...slug].astro` tries a `page` first and falls back to a `blogPost` before 404ing.
+One `postHref` helper is the single source of truth for a post's URL — its slug, nothing prefixed.
+The article markup lives in one component (`BlogPostArticle.astro`) used by both paths, because two
+copies drift and then a post looks different depending on how you reached it. And
+`src/pages/blog/[slug].astro` becomes a **301 only**, and only when the post exists — a blind
+redirect turns a bad URL into a broken-looking redirect. Two live URLs for one article is duplicate
+content, which is the exact problem Phase F exists to prevent.
 
-**Deliverables**
-- Sign-off note in the deployment log confirming GA, CallRail, form, and Sanity content are all serving from the live domain correctly.
-- PageSpeed snapshot post-cutover.
+⚠️ **Grep for hardcoded `/blog/${slug}/`.** `BlogListSection.astro` had **seven**, one of them inside
+its client-side `<script>` — a separate scope that needs its own copy of the helper.
 
-**Exit Criteria**
-- A test phone call appears in the new CallRail dashboard.
-- A test form submission appears in the new webhook destination.
-- A test page view appears in the new GA property within 60 seconds.
-- The site has been up for at least 24 hours without 5xx errors in Vercel's logs.
+**Exit:** a nested page URL and a root-level post URL both return 200; `/blog/<slug>/` returns 301 to
+the post's canonical path; no hardcoded post-URL construction remains.
 
 ---
 
-## Common Migration Failures (and how we found them)
+## Phase F — Redirect map
 
-| Failure | Symptom | Root cause | Where it bit us |
-|---|---|---|---|
-| Inherited GA tag | Traffic disappearing from your new property | Forked codebase still had source-client's `G-XXXX` | {{BRAND_ABBREV}} was firing into {{FORK_SOURCE_PROJECT}}'s GA for hours |
-| Inherited CallRail | Calls not showing in your dashboard, but swap numbers display | Forked codebase still has source-client's company ID | Same fork-leak as above |
-| CallRail "never returns a result" in their verifier | Script is in HTML but verifier doesn't detect it | Script was in `<head>`, CallRail spec wants `<body>` | Cory flagged via support chat |
-| CallRail script silently missing from deployed HTML | Preconnect to callreports.com works but swap.js never loads | Astro strips external `<script src>` tags without `is:inline` | Caught only by view-source on the deployed page |
-| DNS swap leaves site dead | `dig` returns WP host IP, browser shows "site not configured" | Apex `CNAME` existed alongside the new `A` record; Cloudflare's CNAME flattening won | Hour-long outage during {{BRAND_ABBREV}} cutover |
-| Vercel re-breaking DNS | Working `A` record gets replaced with broken `CNAME` | Clicking "let Vercel manage DNS" overrides manual record | Loop until we declined the auto-config dialog |
-| Source-fork brand in mast-bar / footer | Live site has old client's name in copy | Sanity dataset was cloned from fork with old content | "Single-day {{FORK_SOURCE_PROJECT}} · 30-day re-treat free" visible on {{BRAND_ABBREV}} live |
-| WP `-2` duplicate slugs | 404s on URLs with traffic | WP makes `slug-2` when a duplicate is created | `/service-area/kenosha-wi-2/` had 90-day pageviews |
-| Form leaking to old webhook | Test submissions land in source-fork's n8n flow | `AUTOMATION_WEBHOOK_URL` env var wasn't updated in Vercel | Submitted under "{{BRAND_ABBREV_LOWER}}-contact-form" identifier |
+Port every existing redirect — these are already-earned traffic. Bed Bug BBQ's 296 entries protect
+**199,070 recorded 404 hits**, and the top single redirect had 3,747.
+
+⚠️ **Validate every redirect source against the published-URL set.** Four of Bed Bug BBQ's 283 had a
+*live page* as their source, including one that redirected to **itself** (an infinite loop in
+`vercel.json`) and two pointing at `/category/…` paths that never existed on that site. Exclude them
+and say why.
+
+⚠️ **Flatten chains.** Vercel does not follow a redirect to another redirect, and Google discounts
+chains. Also repoint anything that *targets* a URL you're about to start redirecting, or you create a
+new chain at cutover.
+
+⚠️ **Duplicate-slug pairs: the ORIGINAL is canonical.** WordPress generates `-2` and `-old` slugs and
+then, in our experience, redirects the *original* to the fossil — donating the equity of the URL that
+earned it. Bed Bug BBQ had four such pairs; the original held the longer or equal copy in every one.
+Fold the fossil into the original, and make sure the import **excludes the fossils** or the new site
+republishes them as live competitors.
+
+Then check the indexing consequences, because redirects alone don't undo the damage. On Bed Bug BBQ
+the live sitemap advertised two fossils and omitted all four originals, so Google had most likely
+settled on the wrong canonical. Changing canonicals is disruptive by nature — **expect a dip before
+recovery**, and verify with Search Console URL Inspection after cutover rather than assuming.
+
+**Exit:** `vercel.json` parses; no self-redirects; no chains; no duplicate sources; no source is a
+live page except intentional renames; trailing-slash canonicaliser last; recorded hit count stated.
 
 ---
 
-## Migration Sign-off Checklist (one-pager)
+## Phase G — Media seeding
 
-Stick this in the PR description or deployment ticket. Every item must be checked before DNS swap.
+**The XML is what makes the files useful.** It carries `_wp_attachment_image_alt` (Bed Bug BBQ: alt
+text for all but 130 of 1,501 files), the parent page of each attachment, plus title, caption and
+date. Regenerating a thousand alt attributes by hand is days of work and skipping it fails
+accessibility QA.
 
-- [ ] Source-fork commit SHA recorded in `requirements.md`
-- [ ] All credentials in shared vault
-- [ ] WordPress baseline (sitemap + 5 page HTML) archived
-- [ ] URL inventory CSV complete with KEEP/RENAME/RETIRE for every URL with GA traffic
-- [ ] `grep` for old brand name returns 0 matches outside `project-docs/archive/`
-- [ ] `grep` for old domain returns 0 matches outside `project-docs/archive/`
-- [ ] GA measurement ID swapped + verified loading in DevTools
-- [ ] CallRail company ID swapped + script placed before `</body>` with `is:inline`
-- [ ] Form webhook URL swapped in `.env` AND in Vercel env vars
-- [ ] Mast-bar, footer NAP, hero copy reviewed for inherited copy
-- [ ] Favicon + brand mark replaced, cache-busted with `?v=N`
-- [ ] WordPress XML import dry-ran against staging, then promoted to production
-- [ ] Sanity post count matches WP baseline
-- [ ] Redirect map in `vercel.json` covers every RENAME/RETIRE URL
-- [ ] Redirect chain test command shows no 404s for URLs with traffic
-- [ ] PageSpeed scores recorded for 3 representative URLs
-- [ ] Preview parity audit signed off by Project Owner
-- [ ] DNS swap plan reviewed (apex A record, no apex CNAME, declined Vercel auto-config)
-- [ ] Post-cutover phone-call test passed in new CallRail
-- [ ] Post-cutover form test passed in new webhook
-- [ ] Post-cutover GA Realtime test passed in new property
-- [ ] 24-hour uptime confirmed in Vercel logs
+⚠️ **Key assets on the file PATH, not the WP attachment id.** WordPress commonly has several
+attachment records pointing at one file — keying on the id uploads the same image twice.
+
+⚠️ **In-content `<img src>` points at resized derivatives, not originals.** Bed Bug BBQ had 171
+references to `-1024x683` / `-150x150` variants that don't exist in the export, plus `-scaled` cases
+(WordPress renames anything over 2560px). Strip the size suffix and upload the original — Sanity's
+CDN resizes on demand, which is better than importing WordPress's thumbnails. Don't bulk-convert to
+WebP either; request `?fm=webp` in the image URL builder and respect the px cap in
+`PERFORMANCE-STANDARD.md`.
+
+**Never commit the media folder.** Hundreds of MB of binaries sit in git history forever. Gitignore
+the folder, commit the manifest.
+
+**Watch for cross-domain hot-links.** Five Bed Bug BBQ images were served from `bedbugtogo.com`, a
+different domain. They keep depending on it after cutover unless pulled across.
+
+**Exit:** every in-content upload URL resolves to a local file or is explicitly listed as an
+exception; a grep of the imported dataset for `wp-content/uploads` returns **zero** — make that a
+hard pre-launch gate.
+
+---
+
+## Phase H — Import, with rails
+
+**Write drafts, always.** Never publish from a script into production.
+
+**Never assume an empty dataset.** A freshly provisioned Sanity project already holds a dozen system
+documents. The importer should fetch existing ids, write only ids it owns (`page-<slug>` /
+`post-<slug>`), and **refuse to modify anything it did not create** without `--force`. Report the
+not-owned ids rather than silently skipping them.
+
+**Be idempotent on slug** so a re-run updates in place. Use deterministic `_key`s, not random ones,
+or every re-run rewrites every section.
+
+⚠️ **`src/lib/sanityClient.ts` pins `perspective: 'published'`, so the site cannot see drafts.** A
+freshly imported dataset 404s on every URL, which reads exactly like a failed import. Verify by
+publishing in a throwaway `staging` dataset — `scripts/kadence-migrator/publish-drafts.mjs` does this
+and refuses to run against production. Production stays drafts for human review.
+
+**Image assets are per-dataset.** The production import re-uploads everything. Expected, not waste.
+
+**Exit:** dry-run figures reproduce exactly; staging import writes the expected count; the not-owned
+list is accounted for.
+
+---
+
+## Phase H2 — Merge-aware seeding over earlier work (new in v2.2, from Chapman)
+
+Phase H's "never assume an empty dataset" is about *system* documents and *other people's* ids. This
+phase is about the harder case: documents from **your own earlier sessions**, under ids the plan
+legitimately owns. Ownership rules don't protect you from yourself — a replace-based seeder will
+happily overwrite an id it owns, and the run reports success while destroying approved work.
+
+**Run a read-only pre-seed gate before any write, and make it produce a per-document verdict.** On
+Chapman this diffed the frozen plan against the live dataset and classified every planned document:
+byte-identical (172), absent (64), or **differing** (93 — where the differences turned out to be 81
+fully-migrated blog bodies the plan would have flattened). The gate also takes a **full-dataset
+backup** (Chapman: 868 documents, path + SHA-256 recorded) before anything mutates. If an intended
+id already exists, stop and *compare the stored document* — never overwrite merely because it is a
+draft you own.
+
+⚠️ **Check route collisions, not just id collisions.** Two documents with different ids can own the
+same URL — Chapman had five (`/contact/`, `/plumbing-services/` among them), created when an earlier
+session seeded pages under ad-hoc ids and the deterministic plan later generated its own. Id checks
+pass; the site ships two documents per route. The gate must assert URL uniqueness across
+*existing + planned* documents combined. Resolution is a decision, not a default — on Chapman the
+existing ids were adopted into the plan (remapped in the generator, never by hand-editing JSON).
+
+**Seed with explicit per-document action classes**, computed from the diff and reconciled against the
+verdict report before the write: `SKIP_IDENTICAL`, `CREATE`, `REPLACE` (only where the plan's version
+is approved to win), and `PATCH_METADATA_ONLY` for documents where the existing draft owns content
+the plan doesn't carry. For patches, hard-code a **protected-field list** (`content`,
+`featuredImage`, body-derived fields) the seeder may never touch, assert it in tests, and verify in
+readback that protected fields kept their pre-seed hash. Any drift between expected and actual class
+counts is a blocking finding, not something to force through.
+
+**Who owns a field is a decision to put in front of Mark, not a merge heuristic.** On Chapman the
+calls were: existing drafts own blog bodies; the plan owns metadata, taxonomy and SEO; the plan's 12
+improved pages replace; existing ids win the 5 route collisions. Record the ratified decisions in the
+evidence register and encode them in code — a future session must be able to see *why* the seeder
+patches instead of replaces.
+
+**The operator flow is dry-run → write → dry-run.** The second dry-run must report zero pending
+mutations — that is the idempotency proof. Re-count published documents afterwards and verify their
+pre-seed count/hash is unchanged.
+
+Three smaller Chapman lessons that belong here:
+
+⚠️ **Compute `blocking` from real gates — never hard-code it, in either direction.** The plan builder
+shipped with `blocking: errors.length > 0 || true` as a placeholder hold. Safe, but it also means the
+flag is meaningless until someone remembers to remove it — and the removal moment is exactly when a
+mistake ships. Every gate (coverage, schema, media, body, collision) must be a computed condition,
+and the pipeline must build the plan in **one deterministic command** — Chapman's base-plan builder,
+run casually after later integrations, would have overwritten them.
+
+⚠️ **An evidence hash without its extraction rule is not evidence.** A ref-2811 fragment hash
+recorded by an earlier session could not be re-derived from any live page because nobody wrote down
+*how* it was computed. It had to be superseded by a reproducible hash, identical across all 15
+affected pages. Record the rule with the hash, always. Related: a reusable block appearing on a page
+in the WXR is **not** page-level evidence — Chapman's approved set covered 13 pages while the WXR
+showed 15; the two extras needed their own rendered proof before the mapping could claim them.
+
+⚠️ **Validation caps can silently rewrite source content.** Studio `seoTitle`/`seoDescription` length
+rules set as hard errors would have forced truncation of 36 source titles during migration. During a
+migration, fidelity beats style rules: demote length caps to warnings so source values land verbatim,
+and let editors shorten them afterwards as a content decision.
+
+**Exit:** pre-seed gate `PASS` with backup path + SHA-256 recorded; per-document action classes
+reconcile against the diff verdicts; zero route collisions across existing + planned; write completed;
+second dry-run reports zero mutations; protected fields verified unchanged by hash in readback;
+published-document count/hash unchanged.
+
+---
+
+## Phase I — Verification gates
+
+Measure, don't browse. On Chapman the 404s were found by a developer clicking around; that is not a
+gate.
+
+Run a **status-code sweep** over a sample that deliberately includes the shapes most likely to break:
+the homepage, a single-segment page, a **two-level nested page**, a **three-level nested page**, a
+root-level post, the blog index, and `/blog/<post-slug>/` which must return **301**. Then **grep the
+rendered HTML** of five pages for `wp-content/uploads` — every count must be zero. Then confirm the
+sections with no WordPress source render (on Bed Bug BBQ, `areasSection` on the metro hub, fed from
+`serviceArea.ts`), that the shared placeholder resolves to **one** asset id across different pages,
+and that a post's canonical points at its root URL.
+
+**A missing verification script is a gap worth closing.** `npm run template:audit` covers
+placeholders, routes and domain leaks but does **not** check that every internal href resolves to a
+real Sanity document. That check — collect every href the nav and sections emit, assert a matching
+page or post exists — is what would have caught Chapman on day one.
+
+---
+
+## Phase J — What staging verification found (and why each was invisible)
+
+Everything in this phase was found *after* a dry run that reproduced its expected figures exactly.
+That is the lesson: a correct dry run proves the mapping, not the result. Each item below produced a
+**plausible wrong answer instead of an error**, which is the failure mode to design against.
+
+**The layout crash — `ReferenceError: brandLogoPath is not defined`.** Every route 500s, so the
+symptom is indistinguishable from a failed import. Fix: use `absoluteLogoUrl`, already computed at the
+top of `MainLayout.astro`. Check for it during fork cleanup, not during verification.
+
+**The root document gets no slug at all.** `/` reduces to the empty string, and any `prune()` helper
+that strips empty values drops it — so the homepage document ships with the `slug` object present but
+`current` absent, while every other page is fine. The catch-all resolves a bare root request to the
+slug `home`, so nothing matches. Fix: an explicit override mapping `/` → `home`. Verify by asserting
+the homepage document's `slug.current` is a non-empty string, not by loading the page.
+
+**An approved RENAME lands in the redirect map but never in the content.** The decision was recorded
+in `url-inventory.csv`, the 301 was live in `vercel.json`, and the importer — correctly told to
+preserve original URLs — kept the WordPress slug. Result: the old URL 301s to a path with no document
+behind it, so a signed-off rename becomes a 404. Fix: a slug-override map the importer applies, and
+**report the overrides in the run output** so they are visible rather than assumed. Rule: every
+`RENAME` row in the inventory needs a corresponding override, and the counts should match.
+
+**Document id is identity; slug is address.** Do not make the id follow a slug override. If it does,
+every rename orphans the previous document and breaks any reference to the old id. Deriving the id
+from the WordPress `post_name` and letting the slug change independently keeps `createOrReplace`
+updating in place and the run idempotent. State this in a comment — otherwise it looks like a bug and
+someone "fixes" it. Corollary: **after a rename, there is nothing to delete.** An instruction to clean
+up "the old document" will delete the correction instead.
+
+**GROQ's `path()` does not glob inside a segment.** `*[_id in path("drafts.page-*")]` returns **zero**
+for ids like `drafts.page-about-us`, because the wildcard matches whole `.`-delimited segments. It
+does not error — it quietly reports nothing to do. `_id match "drafts.page-*"` happens to work but is
+tokenised text matching, so it answers a slightly different question. Safest: select `path("drafts.**")`
+and apply the ownership rule in JavaScript with `startsWith`, identical to the importer's own rule.
+
+**The blog index does not exist in WordPress.** Its post archive is theme-generated, so there is
+nothing in the WXR to import. If you retire category archives to `/blog/`, that decision silently
+requires a `/blog/` page — otherwise every one of those redirects lands on a 404. Generate it during
+import rather than treating it as a content task.
+
+**A shared placeholder needs to be a real asset.** A dangling image `_ref` is accepted by the mutation
+API and then renders broken in Studio. Upload one file once, fail loudly if it is missing, and never
+create one placeholder per section.
+
+**Empty in WordPress imports as empty.** Pages with `word_count=0` in the baseline arrive with no
+sections. That is fidelity, not a bug — but it needs a content decision (write it or retire it with a
+redirect), so surface it from the inventory rather than discovering it in a browser.
+
+**You cannot compile-verify across a file bridge.** `node_modules` installed for one architecture
+won't run `astro check` from another. Build on the machine that owns the repo, and treat "I couldn't
+compile this" as a thing to say out loud rather than an assumption to leave implicit.
+
+### The rule this phase exists to enforce
+
+**Before any destructive step, query the current state and confirm it matches the model that justified
+the step.** Both of the worst near-misses here — deleting a "stale" document that was actually the fix,
+and publishing nothing because a query silently matched nothing — would have been prevented by one
+read-only check. And **write the expected number down before running the command**, because "expected
+458, got 0" is only a signal if someone predicted 458.
+
+## Phases K–L — Cutover and after
+
+Unchanged from v1.0 and still accurate: the apex `CNAME`-versus-`A`-record trap is real, re-run the
+QA Domain & SEO section after any deploy touching config, sitemap, robots or canonicals, and submit
+the new sitemap in Search Console.
+
+Two additions. **Don't deploy the redirect map to production before the content exists** — category
+redirects target `/blog/`, which 404s until the blog index has content. And after cutover, **verify
+Google's chosen canonical** on any URL where you changed which version is canonical.
+
+---
+
+## Ownership
+
+Unchanged: FFS provisions and completes the repo, Mark sets up Sanity and Vercel and owns approvals
+and the DNS switch, the assigned dev builds from the completed repo. What v2.0 adds is that **the
+person running the import owns the verification gates** — the numbers in Phases D, F, G, H and I are
+the handoff artifact, not a green build.
+
+## What changed
+
+**v2.2** adds Phase H2 (merge-aware seeding) and failure mode #7, from Chapman's 2026-08-11
+seed-package work: pre-seed diffing against existing drafts with per-document action classes and
+protected fields, route-collision (not just id-collision) detection, full-dataset backup before any
+write, computed (never hard-coded) blocking flags built in one deterministic pipeline command,
+reproducible evidence hashes recorded with their extraction rule, page-level (not block-id) evidence
+for reusable blocks, and SEO length caps as warnings during migration so source values land verbatim.
+Also from Chapman: source exports belong inside the repo (Phase A already says commit the WXR
+gzipped — Chapman instead had four exports hardcoded at `~/Downloads` paths across ten scripts;
+repoint through one env var with an in-repo default), and the `{{ }}` brace trap in Phase A struck a
+fourth time, this time on seven `.env.local` values at once, reading as total Sanity auth failure.
+
+**v2.1** adds Phase J — the ten problems staging verification surfaced after a clean dry run, each with its fix and why it was invisible — plus the layout-crash entry in the top-six and in Phase C.
+
+**v2.0**
+
+Phase E (slugs and post URLs) and Phase I (verification gates) are new. Phase A now asks for three
+exports and warns that the Media export omits PDFs. Phase D gains the schema-drift warning, the
+detection order, and the three counting rules. Phase F gains source validation, chain flattening and
+the duplicate-slug rule. Phase G is rewritten around the manifest and resized variants. Phase H gains
+the safety rails and the drafts-perspective trap.

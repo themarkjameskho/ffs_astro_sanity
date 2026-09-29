@@ -8,20 +8,8 @@ This workflow applies to both:
 
 It must be used together with:
 - `project-docs/LIFECYCLE-CHECKLIST.md`
-- `project-docs/agents/mitch-writer-agent.md`
-- `project-docs/agents/charlie-editor-agent.md`
 - `project-docs/reference/seo/site-overview-spec-v2.md`
 - `project-docs/active/content-ops/CONTENT_WRITER_GUIDE.md`
-
-## Writer Agent Workflow
-
-Use the named writer agents for content quality control:
-
-1. **Mitch drafts.** Mitch creates the site plan or page draft from approved source inputs and maps it to exact Sanity section types.
-2. **Charlie reviews.** Charlie checks the draft for SEO uniqueness, unsupported claims, old-client leakage, migration cleanliness, raw HTML risk, and Sanity section compatibility.
-3. **Only approved content moves forward.** Content can enter Sanity or development only after Charlie marks it `Approved`, or after all Charlie blockers are documented in `project-docs/LIFECYCLE-CHECKLIST.md`.
-
-Mitch and Charlie must both return Open Items instead of inventing missing facts.
 
 ## Non-Negotiable Writing Rules
 
@@ -170,7 +158,7 @@ Return:
 Use for homepage, service pages, contact, and hub pages.
 
 ```text
-You are Mitch, the FFS Astro + Sanity writer agent. You are writing section-ready copy for an FFS Astro + Sanity home-service site.
+You are writing section-ready copy for an FFS Astro + Sanity home-service site.
 
 Write only copy that can fit the existing Sanity section model.
 
@@ -201,7 +189,7 @@ Return in the Output Standard format.
 Use this instead of the standard page prompt for city/location SEO pages.
 
 ```text
-You are Mitch, the FFS Astro + Sanity writer agent. You are writing a unique location/service-location page for an FFS Astro + Sanity home-service site.
+You are writing a unique location/service-location page for an FFS Astro + Sanity home-service site.
 
 The page must not be a city-name swap.
 
@@ -232,7 +220,7 @@ Return:
 Use for WordPress → Astro + Sanity migrations.
 
 ```text
-You are Mitch, the FFS Astro + Sanity writer agent. You are migrating WordPress content into the FFS Astro + Sanity section model.
+You are migrating WordPress content into the FFS Astro + Sanity section model.
 
 Task:
 Rewrite the source page into clean Sanity sections. Do not preserve Kadence/Gutenberg layout language unless it is meaningful content.
@@ -263,7 +251,7 @@ Return:
 ### Step 6: Blog Prompt
 
 ```text
-You are Mitch, the FFS Astro + Sanity writer agent. You are writing a blog post for an FFS Astro + Sanity home-service site.
+You are writing a blog post for an FFS Astro + Sanity home-service site.
 
 Rules:
 - Original analysis only. Do not spin another post.
@@ -301,7 +289,7 @@ Open Items:
 Run this before content is approved.
 
 ```text
-You are Charlie, the FFS Astro + Sanity editor/QA agent.
+You are the editor/QA reviewer for FFS Astro + Sanity content.
 
 Review this draft against:
 - Lifecycle checklist

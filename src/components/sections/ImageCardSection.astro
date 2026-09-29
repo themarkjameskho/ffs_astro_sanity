@@ -20,42 +20,42 @@ const backgroundTheme =
 
 const themeMap = {
   white: {
-    section: 'bg-[#ffffff] text-[--color-text]',
-    heading: 'text-[--color-text]',
-    subtitle: 'text-[--color-text-muted]',
+    section: 'bg-[#ffffff] text-(--color-text)',
+    heading: 'text-(--color-text)',
+    subtitle: 'text-(--color-text-muted)',
     card: 'bg-white text-left',
-    cardHeading: 'text-[--color-text]',
-    cardMuted: 'text-[--color-text-muted]',
+    cardHeading: 'text-(--color-text)',
+    cardMuted: 'text-(--color-text-muted)',
     highlight: 'bbg-imgcard-leaf',
     isDark: false
   },
   cream: {
-    section: 'bg-[--sand-pale] text-[--color-text]',
-    heading: 'text-[--color-text]',
-    subtitle: 'text-[--color-text-muted]',
+    section: 'bg-(--sand-pale) text-(--color-text)',
+    heading: 'text-(--color-text)',
+    subtitle: 'text-(--color-text-muted)',
     card: 'bg-white text-left',
-    cardHeading: 'text-[--color-text]',
-    cardMuted: 'text-[--color-text-muted]',
+    cardHeading: 'text-(--color-text)',
+    cardMuted: 'text-(--color-text-muted)',
     highlight: 'bbg-imgcard-leaf',
     isDark: false
   },
   oliveGreen: {
-    section: 'bg-[--green-primary] text-white',
+    section: 'bg-(--green-primary) text-white',
     heading: 'text-white',
     subtitle: 'text-white/85',
     card: 'bg-white text-left',
-    cardHeading: 'text-[--color-text]',
-    cardMuted: 'text-[--color-text-muted]',
+    cardHeading: 'text-(--color-text)',
+    cardMuted: 'text-(--color-text-muted)',
     highlight: 'bbg-imgcard-leaf-dark',
     isDark: true
   },
   darkGreen: {
-    section: 'bg-[--green-deep] text-white',
+    section: 'bg-(--green-deep) text-white',
     heading: 'text-white',
     subtitle: 'text-white/75',
     card: 'bg-white text-left',
-    cardHeading: 'text-[--color-text]',
-    cardMuted: 'text-[--color-text-muted]',
+    cardHeading: 'text-(--color-text)',
+    cardMuted: 'text-(--color-text-muted)',
     highlight: 'bbg-imgcard-leaf-dark',
     isDark: true
   }
@@ -182,7 +182,7 @@ const imageSizesAttr =
                   <ul class={`space-y-2 ${theme.cardHeading} text-sm md:text-base`}>
                     {itemList.map((item) => (
                       <li class="flex items-start gap-3">
-                        <span class="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[--color-secondary] text-xs text-white">
+                        <span class="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-(--color-secondary) text-xs text-white">
                           ✓
                         </span>
                         <span>{item}</span>

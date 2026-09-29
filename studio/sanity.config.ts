@@ -12,14 +12,14 @@ import { StudioTheme } from './components/StudioTheme';
 const projectId = process.env.SANITY_STUDIO_PROJECT_ID ?? process.env.SANITY_PROJECT_ID;
 const dataset = process.env.SANITY_STUDIO_DATASET ?? process.env.SANITY_DATASET;
 
-if (!projectId || !dataset) {
+if (!projectId || !dataset || /\{\{.*\}\}/.test(projectId) || /\{\{.*\}\}/.test(dataset)) {
   throw new Error('Missing SANITY project configuration. Add SANITY_STUDIO_PROJECT_ID and SANITY_STUDIO_DATASET.');
 }
 
 export default defineConfig({
-  name: 'bedbugbegonenow-studio',
-  title: 'Bed Bug Be Gone Now',
-  subtitle: 'Bed Bug Be Gone Now',
+  name: 'ffs-astro-sanity-studio',
+  title: 'FFS Astro + Sanity Studio',
+  subtitle: 'Standard Astro + Sanity workspace',
   projectId,
   dataset,
   icon: () => '🐞',

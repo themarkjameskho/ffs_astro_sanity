@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "FFS Astro + Sanity Standard Template",
+    "root": "/Volumes/juandemarkho/Projects/ffs_astro_sanity",
+    "repository": null,
+    "branch": null,
+    "worktree": "/Volumes/juandemarkho/Projects/ffs_astro_sanity",
+    "governing_documents": [
+      "AGENTS.md",
+      "project-docs/START-HERE.md",
+      "project-docs/LIFECYCLE-CHECKLIST.md",
+      "project-docs/standards/COMPONENT-AND-CONTENT-STANDARD.md",
+      "project-docs/Astro-Sanity Process/COMPONENT-FIRST-ARCHITECTURE-POLICY.md"
+    ]
+  },
+  "lifecycle_mode": "mixed",
+  "completion_contract_version": 1,
+  "macro_plan_version": 1,
+  "current_phase": "PH-003",
+  "current_milestone": "M-003 Component and preview verification",
+  "active_work_packages": [],
+  "active_tasks": [],
+  "passed_gates": [
+    {
+      "id": "G-001",
+      "name": "Destination Gate",
+      "result": "SCOPED PASS",
+      "evidence": "Current architecture and documentation baseline inspected; scope recorded in Completion Contract."
+    }
+  ],
+  "blockers": [],
+  "pending_approvals": [],
+  "role_threads": {
+    "orchestrator": null,
+    "senior_architect": null,
+    "senior_developer": null,
+    "developers": []
+  },
+  "latest_evidence": [
+    "EV-001: page schema union and canonical renderer inspected",
+    "EV-002: documentation baseline inspected",
+    "EV-003: standard documentation paths and state verified",
+    "EV-004: active-documentation drift scan passed",
+    "EV-005: npm run build passed",
+    "EV-006: 14 section registrations agree across schema, types, GROQ, and renderer",
+    "EV-007: npm run template:audit passed",
+    "EV-008: invalid Sanity placeholders now fail closed with HTTP 404",
+    "EV-009: in-app browser localhost verification skipped because local URLs are blocked"
+    ,"EV-010: guide page seeded in repo_template",
+    "EV-011: guide page read back through Sanity API",
+    "EV-012: populated local preview returned HTTP 200 with six sections",
+    "EV-013: unknown route returned HTTP 404",
+    "EV-014: template audit passed after runtime fix",
+    "EV-015: in-app browser preview reloaded without runtime error; shared dark section styling visible",
+    "EV-016: primary, nested treatment, template, and legal starter routes return HTTP 200",
+    "EV-017: main navigation uses canonical simple labels and excludes template/legal CMS pages",
+    "EV-018: guide route includes the content architecture hierarchy and authoring rules",
+    "EV-019: global footer exposes Content & Section Guide on every page"
+  ],
+  "next_action": {
+    "action": "Keep the local preview available for review; run deployment-specific verification only when a deployment is requested",
+    "responsible_role": "Senior Developer",
+    "can_proceed_automatically": true,
+    "approval_required": false,
+    "blocking_input_or_external_change_required": false
+  },
+  "last_reconciled_at": "2026-09-29T10:30:00.000Z",
+  "created_at": "2026-09-29T08:51:12.066Z",
+  "updated_at": "2026-09-29T10:40:00.000Z"
+}

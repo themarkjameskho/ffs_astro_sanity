@@ -364,14 +364,14 @@
 - Queries planned for `SectionRenderer`.
 
 **Step-by-Step Checklist**
-1. Ensure `src/pages/index.astro` and `src/pages/[...slug].astro` exist; scaffold additional page templates as needed (e.g., `services.astro`).
+1. Ensure the canonical dynamic route `src/pages/[...slug].astro` exists. Do not scaffold page-specific marketing templates; page documents and their ordered registered sections supply the page variation.
 2. In `[...slug].astro`, implement:
-   - `getStaticPaths` using `ALL_PAGES` query.
+   - Keep `prerender = false` for the CMS route unless the project has an explicit approved move to static generation.
    - Fetch page data via `PAGE_BY_SLUG`.
    - Graceful redirects for unknown slugs.
-3. Build/extend `src/components/SectionRenderer.astro` to map section types to Astro components; log warnings for unknown templates.
+3. Build/extend `src/components/sections/SectionRenderer.astro`, the one canonical renderer, to map registered section types to shared Astro components. An unsupported type is a HOLD to resolve through the shared-component process, not a fallback template.
 4. Create section components under `src/components/sections/` aligning prop names with Sanity schema fields.
-5. Define Sanity data types in `src/types/cms.ts` (e.g., `Page`, `HeroSection`, `FeatureStack`).
+5. Define/update Sanity data types in `src/types/sections.ts` and the relevant page contracts/projections.
 6. Implement utility helpers (CTA resolver, slug sanitizer) under `src/lib/`.
 7. Add unit tests with Vitest:
    ```bash
@@ -382,10 +382,9 @@
 9. Populate or adjust Sanity content to validate each section renders properly.
 
 **Senior Dev Tasks**
-- Create page templates under `src/pages/` keyed to Sanity document types.
 - Implement the dynamic catch-all route in `src/pages/[...slug].astro` to resolve Sanity slugs and hand off to shared renderers.
 - Implement shared utilities (markdown rendering, rich text components, image helpers).
-- Build and maintain `src/components/SectionRenderer.astro` (or equivalent) that dispatches Sanity section data to Astro components with sensible fallbacks.
+- Build and maintain `src/components/sections/SectionRenderer.astro` as the canonical dispatcher from registered Sanity section data to shared Astro components. Do not add sensible-fallback templates or a second renderer.
 - Guard against hydration issues by choosing islands for dynamic widgets only.
 - Maintain TypeScript types for Sanity documents in `src/types/cms.ts`.
 
@@ -398,9 +397,9 @@
 
 **Exit Criteria**
 - Dynamic routes render all configured Sanity content without console errors.
-- `project-docs/Astro-Sanity Process/page-contracts.md` exists and maps each page template to required schema fields.
-- Unit tests cover helpers and `SectionRenderer` logic; CI passes.
-- Unknown section types are either implemented or tracked in backlog with owner.
+- `project-docs/Astro-Sanity Process/page-contracts.md` exists and maps page content to registered section contracts.
+- Unit tests cover helpers and canonical renderer logic; CI passes.
+- Unknown section types are resolved through the approved shared-component path or remain a documented HOLD with owner.
 
 ---
 

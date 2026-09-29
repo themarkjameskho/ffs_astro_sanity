@@ -117,9 +117,6 @@ vite.config.ts.timestamp-*
 .DS_Store
 .idea/
 
-# Claude Code local settings (per-machine, not for templates)
-.claude/settings.local.json
-
 # Misc
 .jetbrains
 .sanity/
@@ -131,3 +128,4 @@ import/
 # Kadence migrator outputs (client-specific, regenerated each run)
 scripts/kadence-migrator/migration-report.json
 scripts/kadence-migrator/unmapped-rowlayouts.json
+

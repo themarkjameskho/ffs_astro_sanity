@@ -1,6 +1,8 @@
-# FFS Astro + Sanity Home-Service Template
+# FFS Astro + Sanity Standard Template
 
-This repository is the Fast Forward Search Astro + Sanity starting point for home-service, pest-control, and bed-bug SEO sites. It supports both new builds and WordPress migrations into a standardized Sanity section system.
+This repository is the official Fast Forward Search Astro + Sanity starting point for home-service, pest-control, and bed-bug SEO sites. It supports Fresh Builds, WordPress Migrations, and Landing Pages/Microsites through one standardized, Sanity-driven shared-component system.
+
+Start with [project-docs/START-HERE.md](project-docs/START-HERE.md). Every AI agent and developer must follow the lifecycle checklist, selected delivery track, and component/content standard before making a change.
 
 ## Tech Stack
 - **Astro** for the website front end
@@ -65,6 +67,7 @@ Create the appropriate `.env` files for the site and Studio with these values:
 - Page content is queried from Sanity and rendered through Astro dynamic routes.
 - Sanity Studio manages reusable sections, marketing content, and dynamic page entries.
 - Astro builds and serves published content from Sanity while keeping layout and presentation in the frontend codebase.
+- `src/components/sections/SectionRenderer.astro` is the one canonical marketing-section renderer. Do not add page-specific templates or slug/title/content-based presentation branches.
 
 ## Deployment & Live Updates
 

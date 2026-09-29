@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Website Build Spec — Evergreen Lawn & Pest Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --orange:        #F05A00;
+    --orange-mid:    #F47330;
+    --orange-light:  #FEF0E8;
+    --orange-border: #F7C4A8;
+    --orange-dark:   #C04200;
+
+    --yellow:        #F59E0B;
+    --yellow-light:  #FFFBEB;
+    --yellow-border: #FCD34D;
+
+    --red:           #DC2626;
+    --red-light:     #FEF2F2;
+    --red-border:    #FECACA;
+
+    --green:         #16A34A;
+    --green-light:   #F0FDF4;
+    --green-border:  #86EFAC;
+
+    --blue:          #1D4ED8;
+    --blue-light:    #EFF6FF;
+    --blue-border:   #BFDBFE;
+
+    --dark:          #111827;
+    --dark-mid:      #1F2937;
+
+    --gray-50:       #F9FAFB;
+    --gray-100:      #F3F4F6;
+    --gray-200:      #E5E7EB;
+    --gray-300:      #D1D5DB;
+    --gray-500:      #6B7280;
+    --gray-600:      #4B5563;
+    --gray-700:      #374151;
+    --white:         #FFFFFF;
+
+    --text:          #111827;
+    --text-mid:      #374151;
+    --text-light:    #6B7280;
+
+    --mono:          'JetBrains Mono', monospace;
+    --radius:        8px;
+    --radius-lg:     12px;
+  }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--text);
+    background: var(--gray-50);
+  }
+
+  /* ── DRAFT BANNER ── */
+  .draft-banner {
+    background: var(--yellow);
+    color: var(--dark);
+    text-align: center;
+    padding: 10px 20px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .draft-banner-icon { font-size: 16px; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--dark-mid);
+    border-bottom: 3px solid var(--orange);
+  }
+  .header-inner {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 40px 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: start;
+  }
+  .doc-type {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 6px;
+  }
+  .header h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: white;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .header-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+  }
+  .header-meta {
+    text-align: right;
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    line-height: 2;
+  }
+  .header-meta strong { color: rgba(255,255,255,0.75); font-weight: 600; display: block; font-size: 11px; }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--yellow);
+    color: var(--dark);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    background: var(--dark);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── MAIN ── */
+  .main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 36px 40px 80px;
+  }
+
+  /* ── INCOMPLETE NOTICE ── */
+  .incomplete-notice {
+    background: var(--yellow-light);
+    border: 1px solid var(--yellow-border);
+    border-left: 4px solid var(--yellow);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    margin-bottom: 32px;
+  }
+  .incomplete-notice h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: #92400E;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .incomplete-notice p {
+    font-size: 13.5px;
+    color: #78350F;
+    line-height: 1.65;
+    margin-bottom: 10px;
+  }
+  .incomplete-notice p:last-child { margin-bottom: 0; }
+  .incomplete-list {
+    list-style: none;
+    font-size: 13px;
+    color: #78350F;
+    margin-top: 8px;
+  }
+  .incomplete-list li {
+    padding: 4px 0;
+    border-bottom: 1px solid #FDE68A;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .incomplete-list li:last-child { border-bottom: none; }
+  .incomplete-list li::before { content: "⏳"; font-size: 12px; }
+
+  /* ── START NOW BOX ── */
+  .start-now {
+    background: var(--green-light);
+    border: 1px solid var(--green-border);
+    border-left: 4px solid var(--green);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    margin-bottom: 32px;
+  }
+  .start-now h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: #14532D;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .start-list {
+    list-style: none;
+    font-size: 13.5px;
+    color: #166534;
+  }
+  .start-list li {
+    padding: 5px 0;
+    border-bottom: 1px solid var(--green-border);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .start-list li:last-child { border-bottom: none; }
+  .start-list li::before { content: "✓"; font-weight: 700; color: var(--green); flex-shrink: 0; margin-top: 1px; }
+
+  /* ── SECTION HEADS ── */
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    margin-top: 44px;
+  }
+  .section-head:first-child { margin-top: 0; }
+  .section-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--orange);
+    background: var(--orange-light);
+    border: 1px solid var(--orange-border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .section-head h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--dark);
+    letter-spacing: 0.01em;
+  }
+  .section-divider {
+    flex: 1;
+    height: 1px;
+    background: var(--gray-200);
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .card-head {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 13px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .card-head-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--dark);
+    letter-spacing: 0.01em;
+  }
+  .card-body { padding: 18px 20px; }
+
+  /* ── FIELD TABLES ── */
+  .field-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  .field-table th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    padding: 0 12px 8px 0;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .field-table td {
+    padding: 9px 12px 9px 0;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: top;
+  }
+  .field-table tr:last-child td { border-bottom: none; }
+  .field-table td:first-child {
+    font-weight: 600;
+    color: var(--text-mid);
+    width: 200px;
+    white-space: nowrap;
+  }
+  .field-table td:last-child { color: var(--text); }
+
+  /* ── CODE / MONO BLOCKS ── */
+  .mono {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-200);
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: var(--orange-dark);
+  }
+  .code-block {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--dark);
+    color: #E2E8F0;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin-top: 8px;
+  }
+  .code-block .cm { color: #94A3B8; }
+  .code-block .ky { color: #93C5FD; }
+  .code-block .st { color: #86EFAC; }
+  .code-block .nu { color: #FCA5A5; }
+
+  /* ── BADGES / PILLS ── */
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+  .badge.tbd    { background: var(--yellow-light); color: #92400E; border: 1px solid var(--yellow-border); }
+  .badge.ready  { background: var(--green-light);  color: #14532D; border: 1px solid var(--green-border); }
+  .badge.client { background: var(--blue-light);   color: #1E3A8A; border: 1px solid var(--blue-border); }
+  .badge.ffs    { background: var(--orange-light);  color: var(--orange-dark); border: 1px solid var(--orange-border); }
+
+  /* ── PAGE ARCHITECTURE TABLE ── */
+  .arch-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .arch-table th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    padding: 8px 12px;
+    background: var(--gray-50);
+    border-bottom: 2px solid var(--gray-200);
+  }
+  .arch-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+  }
+  .arch-table tr:last-child td { border-bottom: none; }
+  .arch-table tr:hover td { background: var(--gray-50); }
+  .arch-table td:first-child { font-family: var(--mono); font-size: 12px; color: var(--orange-dark); }
+  .arch-table .url-col { color: var(--blue); font-family: var(--mono); font-size: 12px; }
+
+  /* ── CHECKLIST ── */
+  .checklist {
+    list-style: none;
+    font-size: 13.5px;
+  }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--text-mid);
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checkbox {
+    width: 16px; height: 16px;
+    border: 2px solid var(--gray-300);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* ── PLACEHOLDER FIELDS ── */
+  .ph {
+    display: inline-block;
+    background: var(--yellow-light);
+    border: 1px dashed var(--yellow-border);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: #92400E;
+    font-weight: 500;
+  }
+
+  /* ── GRID LAYOUTS ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* ── STACK CARD (tech) ── */
+  .stack-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+  }
+  .stack-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 4px;
+  }
+  .stack-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 4px;
+  }
+  .stack-desc {
+    font-size: 12.5px;
+    color: var(--text-light);
+    line-height: 1.55;
+  }
+
+  /* ── INLINE NOTES ── */
+  .note {
+    font-size: 12px;
+    color: var(--text-light);
+    font-style: italic;
+    margin-top: 4px;
+  }
+
+  .page-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .page-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    gap: 12px;
+  }
+  .page-card-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--dark);
+  }
+  .page-card-url {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--blue);
+  }
+  .page-card-body {
+    padding: 14px 18px;
+    font-size: 13px;
+    color: var(--text-mid);
+    line-height: 1.65;
+  }
+  .page-reqs {
+    list-style: none;
+    font-size: 13px;
+    color: var(--text-mid);
+    margin-top: 8px;
+  }
+  .page-reqs li {
+    padding: 3px 0;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .page-reqs li:last-child { border-bottom: none; }
+  .page-reqs li::before { content: "→ "; color: var(--orange); font-weight: 700; }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    padding: 24px 40px;
+    font-size: 12px;
+    color: var(--text-light);
+    border-top: 1px solid var(--gray-200);
+    line-height: 1.9;
+  }
+  .footer strong { color: var(--text-mid); }
+
+  @media (max-width: 700px) {
+    .header-inner { grid-template-columns: 1fr; }
+    .header-meta { text-align: left; }
+    .two-col, .three-col { grid-template-columns: 1fr; }
+    .main { padding: 24px 16px 60px; }
+    .header-inner { padding: 22px 16px 18px; }
+    .field-table td:first-child { width: 140px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ STICKY DRAFT BANNER ═══ -->
+<div class="draft-banner">
+  <span class="draft-banner-icon">⚠️</span>
+  DRAFT — INCOMPLETE · Awaiting client response before this spec can be finalized
+  <span class="draft-banner-icon">⚠️</span>
+</div>
+
+<!-- ═══ HEADER ═══ -->
+<header class="header">
+  <div class="header-inner">
+    <div>
+      <div class="doc-type">Fast Forward Search · Website Build Spec</div>
+      <h1>Evergreen Lawn &amp; Pest Control</h1>
+      <div class="header-sub">evergreenlawnsnwa.com · Northwest Arkansas · Astro + Sanity CMS</div>
+    </div>
+    <div class="header-meta">
+      <div class="status-pill"><span class="status-dot"></span> Draft — Incomplete</div>
+      <strong>Client</strong>
+      Evergreen Lawn &amp; Pest Control<br>
+      <strong>Contacts</strong>
+      Shane, Travis (Owner: Daryl)<br>
+      <strong>Platform</strong>
+      Astro + Sanity CMS<br>
+      <strong>Version</strong>
+      0.1 — Pending Client Info
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- ══════════ INCOMPLETE NOTICE ══════════ -->
+  <div class="incomplete-notice">
+    <h3>⚠️ This Spec Is Not Complete — Do Not Begin Development</h3>
+    <p>This document contains all available information as of the initial proposal. Several required fields are still pending client response. <strong>Development should not begin in full until the missing items below are confirmed.</strong> See the "Start Now" section for what the team can move on immediately.</p>
+    <p><strong>Missing / pending from client:</strong></p>
+    <ul class="incomplete-list">
+      <li>Business phone number</li>
+      <li>Business hours</li>
+      <li>Physical / registered address (must match Google Business Profile exactly)</li>
+      <li>Final confirmed service list (names, slugs, descriptions)</li>
+      <li>Service area cities (surrounding NWA communities they cover)</li>
+      <li>Google review count &amp; average star rating</li>
+      <li>Years in business</li>
+      <li>Licenses, certifications, or guarantees offered</li>
+      <li>Brand differentiators — 3–5 specific reasons clients choose them</li>
+      <li>Existing logo files &amp; brand colors</li>
+      <li>Google Business Profile URL</li>
+      <li>Fieldroutes customer portal URL / embed details</li>
+      <li>Photography — team photos, job site photos, before/after</li>
+    </ul>
+  </div>
+
+  <!-- ══════════ START NOW ══════════ -->
+  <div class="start-now">
+    <h3>✅ What the Team Can Start Now</h3>
+    <ul class="start-list">
+      <li>Stand up the Astro project repo — initialize with preferred starter, configure Sanity studio, connect to deployment pipeline (Vercel recommended)</li>
+      <li>Set up Sanity schema scaffolding for the content types we know we'll need: <strong>Page, ServicePage, BlogPost, LocationPage, SiteSettings, TeamMember</strong></li>
+      <li>Build the global layout components — Nav, Footer, CTA bar, Trust bar — using placeholder content. These won't change much based on client data.</li>
+      <li>Build the <strong>Homepage shell</strong> — hero section, services grid, trust section, CTA — with placeholder copy and placeholder imagery slots. Client data drops in.</li>
+      <li>Build the <strong>Contact Page</strong> — form structure, NAP block layout, map embed placeholder. Form fields are defined below.</li>
+      <li>Configure Fieldroutes portal integration stub — we know it's needed, just need the embed details from the client to wire it live.</li>
+      <li>Establish the URL structure and Astro routing based on the site architecture below — slugs can be confirmed/adjusted once the final service list arrives.</li>
+      <li>Set up Core Web Vitals baseline — image optimization pipeline, font loading strategy, Astro island architecture decisions</li>
+    </ul>
+  </div>
+
+  <!-- ══════════ SECTION 1: PROJECT INFO ══════════ -->
+  <div class="section-head">
+    <span class="section-num">01</span>
+    <h2>Project Overview</h2>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head"><span class="card-head-title">Client Info</span></div>
+      <div class="card-body">
+        <table class="field-table">
+          <tr><td>Business Name</td><td>Evergreen Lawn &amp; Pest Control</td></tr>
+          <tr><td>Website</td><td><span class="mono">evergreenlawnsnwa.com</span></td></tr>
+          <tr><td>Region</td><td>Northwest Arkansas (NWA)</td></tr>
+          <tr><td>Contacts</td><td>Shane, Travis</td></tr>
+          <tr><td>Owner</td><td>Daryl</td></tr>
+          <tr><td>Phone</td><td><span class="ph">[PENDING]</span></td></tr>
+          <tr><td>Address</td><td><span class="ph">[PENDING — must match GBP]</span></td></tr>
+          <tr><td>Hours</td><td><span class="ph">[PENDING]</span></td></tr>
+          <tr><td>GBP URL</td><td><span class="ph">[PENDING]</span></td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-head-title">Trust Signals</span></div>
+      <div class="card-body">
+        <table class="field-table">
+          <tr><td>Review Count</td><td><span class="ph">[PENDING]</span></td></tr>
+          <tr><td>Avg. Rating</td><td><span class="ph">[PENDING]</span></td></tr>
+          <tr><td>Years in Business</td><td><span class="ph">[PENDING]</span></td></tr>
+          <tr><td>Certifications</td><td><span class="ph">[PENDING]</span></td></tr>
+          <tr><td>Guarantee</td><td><span class="ph">[PENDING]</span></td></tr>
+          <tr><td>Differentiators</td><td><span class="ph">[PENDING — 3–5 specific reasons]</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 2: TECH STACK ══════════ -->
+  <div class="section-head">
+    <span class="section-num">02</span>
+    <h2>Tech Stack</h2>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="three-col">
+    <div class="stack-card">
+      <div class="stack-label">Frontend Framework</div>
+      <div class="stack-name">Astro</div>
+      <div class="stack-desc">Static-first, island architecture. Minimal JS by default — maximum Core Web Vitals performance. Build tool of choice for high-performance service sites.</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-label">CMS</div>
+      <div class="stack-name">Sanity</div>
+      <div class="stack-desc">Headless CMS with structured content. Client manages copy, images, and service info through Sanity Studio. Clean UI — most non-technical users adapt quickly.</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-label">Deployment</div>
+      <div class="stack-name">Vercel</div>
+      <div class="stack-desc">Recommended deployment target for Astro. Git-based deploys, instant preview URLs, edge network. Confirm with team if a different host is preferred.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <div class="card-head"><span class="card-head-title">Integrations Required</span></div>
+    <div class="card-body">
+      <table class="field-table">
+        <tr>
+          <td>Fieldroutes Portal</td>
+          <td>Customer login / invoice portal embed. <span class="ph">[PENDING — need embed URL/script from client]</span></td>
+        </tr>
+        <tr>
+          <td>CallRail</td>
+          <td>Dynamic number insertion for call tracking. To be added to global layout.</td>
+        </tr>
+        <tr>
+          <td>Google Analytics 4</td>
+          <td><span class="ph">[PENDING — need GA4 measurement ID from client or FFS to create]</span></td>
+        </tr>
+        <tr>
+          <td>Google Search Console</td>
+          <td><span class="ph">[PENDING — verify ownership post-launch]</span></td>
+        </tr>
+        <tr>
+          <td>AI Missed Call / Text Back</td>
+          <td>If purchased — integration snippet added to global layout. Handled post-launch.</td>
+        </tr>
+        <tr>
+          <td>AI Form to Text</td>
+          <td>If purchased — contact form submission webhook. Handled post-launch.</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 3: SERVICES ══════════ -->
+  <div class="section-head">
+    <span class="section-num">03</span>
+    <h2>Services</h2>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title">Confirmed Services (from proposal)</span>
+      <span class="badge tbd">Slugs Pending Confirmation</span>
+    </div>
+    <div class="card-body">
+      <table class="arch-table">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Proposed Slug</th>
+            <th>Primary Keyword (placeholder)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>/</td>
+            <td class="url-col">/services/lawn-care/</td>
+            <td>lawn care [city] NWA</td>
+            <td><span class="badge tbd">Confirm w/ client</span></td>
+          </tr>
+          <tr>
+            <td>/</td>
+            <td class="url-col">/services/pest-control/</td>
+            <td>pest control [city] AR</td>
+            <td><span class="badge tbd">Confirm w/ client</span></td>
+          </tr>
+          <tr>
+            <td>/</td>
+            <td class="url-col">/services/bed-bugs/</td>
+            <td>bed bug treatment [city] AR</td>
+            <td><span class="badge tbd">Confirm w/ client</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-top:10px;">⚠️ Client may have additional services beyond these three. Ask on next call. Slugs must be locked before URL structure is finalized — changing them post-launch causes redirect overhead.</p>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 4: SITE ARCHITECTURE ══════════ -->
+  <div class="section-head">
+    <span class="section-num">04</span>
+    <h2>Site Architecture</h2>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title">Page Type Map</span>
+      <span class="badge tbd">URL structure pending service + city confirmation</span>
+    </div>
+    <div class="card-body">
+      <table class="arch-table">
+        <thead>
+          <tr><th>Type</th><th>Example URL</th><th>Purpose</th><th>Count</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>HP</td>
+            <td class="url-col">/</td>
+            <td>Homepage — primary GBP landing, all services above fold</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>SP</td>
+            <td class="url-col">/services/[service-slug]/</td>
+            <td>Dedicated page per service — lawn care, pest control, bed bugs (+ any others)</td>
+            <td>3+</td>
+          </tr>
+          <tr>
+            <td>SLP</td>
+            <td class="url-col">/services/[service-slug]/[city-slug]/</td>
+            <td>Service + city combos — e.g. /services/pest-control/fayetteville/</td>
+            <td><span class="ph">TBD</span></td>
+          </tr>
+          <tr>
+            <td>LOC-B</td>
+            <td class="url-col">/locations/[city-slug]/</td>
+            <td>Proximity location pages for surrounding NWA cities</td>
+            <td><span class="ph">TBD — pending city list</span></td>
+          </tr>
+          <tr>
+            <td>BL</td>
+            <td class="url-col">/blog/ + /blog/[post-slug]/</td>
+            <td>Content marketing — managed via Sanity</td>
+            <td>Ongoing</td>
+          </tr>
+          <tr>
+            <td>CP</td>
+            <td class="url-col">/contact/</td>
+            <td>Contact + quote form, NAP, map embed</td>
+            <td>1</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-top:10px;">Note: No standalone LOC-A page needed — Homepage serves as the primary GBP-linked page for the main service city (single-operator model).</p>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 5: PAGE SPECS ══════════ -->
+  <div class="section-head">
+    <span class="section-num">05</span>
+    <h2>Page-Level Requirements</h2>
+    <div class="section-divider"></div>
+  </div>
+
+  <!-- HOMEPAGE -->
+  <div class="page-card">
+    <div class="page-card-head">
+      <span class="page-card-title">Homepage (HP)</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="page-card-url">/</span>
+        <span class="badge ready">Can Build Now</span>
+      </div>
+    </div>
+    <div class="page-card-body">
+      <p>Primary landing page. Serves as the GBP-linked page. Must communicate all three service areas above the fold and drive calls + form fills.</p>
+      <ul class="page-reqs" style="margin-top:10px;">
+        <li>Hero: H1 with primary city keyword + strong CTA (call + form). Placeholder image slot.</li>
+        <li>Services grid: Lawn Care · Pest Control · Bed Bugs — each card links to its SP. Add additional services when confirmed.</li>
+        <li>Trust bar: star rating · review count · years in business · licensed &amp; insured — all <span class="ph">[PENDING]</span></li>
+        <li>Fieldroutes portal CTA block — "Existing customers: log in here" — <span class="ph">[embed pending]</span></li>
+        <li>About / why us section — placeholder until differentiators received from client</li>
+        <li>Review block — embed or static quotes — <span class="ph">[review data pending]</span></li>
+        <li>Service area map or city list — <span class="ph">[NWA city list pending]</span></li>
+        <li>Contact form or CTA linking to /contact/</li>
+        <li>NAP in footer: Name · Address · Phone — <span class="ph">[address + phone pending]</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SERVICE PAGES -->
+  <div class="page-card">
+    <div class="page-card-head">
+      <span class="page-card-title">Service Pages (SP)</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="page-card-url">/services/[service-slug]/</span>
+        <span class="badge ready">Shell Can Build Now</span>
+      </div>
+    </div>
+    <div class="page-card-body">
+      <p>One page per service. Template is reusable — build the Astro component once, Sanity drives the content per service.</p>
+      <ul class="page-reqs" style="margin-top:10px;">
+        <li>H1: service name + primary city (e.g. "Pest Control in Fayetteville, AR")</li>
+        <li>Service description — <span class="ph">[copy pending client/copywriting]</span></li>
+        <li>Process / how it works section (3–4 steps)</li>
+        <li>FAQ section — minimum 4 questions per service — <span class="ph">[pending]</span></li>
+        <li>CTA: click-to-call + form link</li>
+        <li>Internal links to relevant SLP pages for that service</li>
+        <li>Schema: <span class="mono">PestControlService</span> + <span class="mono">FAQPage</span> + <span class="mono">BreadcrumbList</span></li>
+        <li>Build Sanity schema: title, slug, metaTitle, metaDesc, heroImage, bodyContent, faqItems, relatedCities</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CONTACT PAGE -->
+  <div class="page-card">
+    <div class="page-card-head">
+      <span class="page-card-title">Contact Page (CP)</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="page-card-url">/contact/</span>
+        <span class="badge ready">Can Build Now</span>
+      </div>
+    </div>
+    <div class="page-card-body">
+      <p>Conversion endpoint. Minimal outbound links. Form must be visible above fold on desktop.</p>
+      <ul class="page-reqs" style="margin-top:10px;">
+        <li>H1: action-oriented — e.g. "Get a Free Quote" or "Request a Callback"</li>
+        <li>Click-to-call phone — <span class="ph">[phone pending]</span></li>
+        <li>Hours displayed — <span class="ph">[hours pending]</span></li>
+        <li>Contact form: Full Name (req) · Phone (req) · City/Zip (req) · Service Needed (select — req) · Message (optional)</li>
+        <li>Submit button copy: "Get My Free Quote" — never "Submit"</li>
+        <li>Below form: "We typically respond within [X hours]" — <span class="ph">[response time pending]</span></li>
+        <li>Inline confirmation state after submit (no redirect)</li>
+        <li>NAP block — <span class="ph">[address pending]</span></li>
+        <li>Google Maps embed — <span class="ph">[embed URL pending]</span></li>
+        <li>Schema: <span class="mono">ContactPage</span> + <span class="mono">LocalBusiness</span> + <span class="mono">BreadcrumbList</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SLP + LOC-B -->
+  <div class="page-card">
+    <div class="page-card-head">
+      <span class="page-card-title">Service + Location Pages (SLP) &amp; Proximity Pages (LOC-B)</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="page-card-url">/services/[service]/[city]/ · /locations/[city]/</span>
+        <span class="badge tbd">Blocked — Needs City List</span>
+      </div>
+    </div>
+    <div class="page-card-body">
+      <p>Cannot scope or build these until the client confirms which cities they serve in the NWA region. Once we have the city list, the Astro routing and Sanity schema for these page types can be templated quickly.</p>
+      <ul class="page-reqs" style="margin-top:10px;">
+        <li>NWA cities likely include: Fayetteville, Springdale, Rogers, Bentonville, Siloam Springs, Bella Vista, Centerton — <strong>confirm with client</strong></li>
+        <li>Each SLP: unique intro paragraph, service description, local FAQ, CTA, internal links</li>
+        <li>Each LOC-B: proximity statement, all services listed, links to relevant SLPs</li>
+        <li>Schema: <span class="mono">PestControlService</span> + <span class="mono">FAQPage</span> + <span class="mono">BreadcrumbList</span> per page</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 6: SANITY SCHEMA ══════════ -->
+  <div class="section-head">
+    <span class="section-num">06</span>
+    <h2>Sanity CMS — Schema Plan</h2>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title">Content Types to Build</span>
+      <span class="badge ready">Start Now</span>
+    </div>
+    <div class="card-body">
+      <table class="arch-table">
+        <thead>
+          <tr><th>Schema Name</th><th>Used For</th><th>Key Fields</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>siteSettings</td>
+            <td>Global — NAP, hours, phone, logo, social links</td>
+            <td>businessName, phone, address, hours, logo, gaId</td>
+          </tr>
+          <tr>
+            <td>servicePage</td>
+            <td>SP pages — one doc per service</td>
+            <td>title, slug, metaTitle, metaDesc, heroImage, body, faqItems, relatedCities</td>
+          </tr>
+          <tr>
+            <td>locationPage</td>
+            <td>LOC-B proximity pages</td>
+            <td>cityName, slug, state, driveTime, introText, services[], faqs[]</td>
+          </tr>
+          <tr>
+            <td>blogPost</td>
+            <td>Blog content</td>
+            <td>title, slug, publishedAt, author, categories[], body, metaTitle, metaDesc, featuredImage</td>
+          </tr>
+          <tr>
+            <td>teamMember</td>
+            <td>About / trust section</td>
+            <td>name, role, photo, bio</td>
+          </tr>
+          <tr>
+            <td>testimonial</td>
+            <td>Review blocks sitewide</td>
+            <td>reviewerName, city, rating, body, service, date</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 7: SEO BASELINE ══════════ -->
+  <div class="section-head">
+    <span class="section-num">07</span>
+    <h2>SEO Technical Baseline</h2>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="card-head-title">Pre-Launch Checklist</span></div>
+    <div class="card-body">
+      <ul class="checklist">
+        <li><span class="checkbox"></span>Canonical tags self-referencing on all pages</li>
+        <li><span class="checkbox"></span>Title tags: unique per page, 50–60 chars, keyword-first</li>
+        <li><span class="checkbox"></span>Meta descriptions: unique per page, 150–160 chars</li>
+        <li><span class="checkbox"></span>H1: one per page, matches primary keyword intent</li>
+        <li><span class="checkbox"></span>Schema markup: LocalBusiness on HP, service schema on SP/SLP, FAQPage on FAQ sections, BreadcrumbList on all inner pages</li>
+        <li><span class="checkbox"></span>XML sitemap auto-generated by Astro integration</li>
+        <li><span class="checkbox"></span>robots.txt configured correctly</li>
+        <li><span class="checkbox"></span>Image alt text on all images (Sanity field required)</li>
+        <li><span class="checkbox"></span>Core Web Vitals: LCP &lt; 2.5s · CLS &lt; 0.1 · INP &lt; 200ms</li>
+        <li><span class="checkbox"></span>Mobile-first responsive — test all breakpoints</li>
+        <li><span class="checkbox"></span>NAP consistent across all pages — matches GBP exactly</li>
+        <li><span class="checkbox"></span>All phone numbers use <span class="mono">href="tel:"</span> for tap-to-call</li>
+        <li><span class="checkbox"></span>Google Analytics 4 firing on all pages — <span class="ph">[GA4 ID pending]</span></li>
+        <li><span class="checkbox"></span>Google Search Console verified post-launch — <span class="ph">[pending]</span></li>
+        <li><span class="checkbox"></span>Fieldroutes portal link functional — <span class="ph">[embed pending]</span></li>
+        <li><span class="checkbox"></span>Contact form submissions tested end-to-end</li>
+        <li><span class="checkbox"></span>CallRail dynamic number insertion active</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 8: PLACEHOLDER AUDIT ══════════ -->
+  <div class="section-head">
+    <span class="section-num">08</span>
+    <h2>Placeholder Audit — Items Needed Before Launch</h2>
+    <div class="section-divider"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title">Outstanding Items</span>
+      <span class="badge client">Awaiting Client</span>
+    </div>
+    <div class="card-body">
+      <table class="field-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Needed For</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tr>
+          <td>Phone number</td>
+          <td>NAP, header, contact page, schema, CallRail setup</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Business hours</td>
+          <td>Contact page, schema, siteSettings</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Physical address</td>
+          <td>NAP, GBP match, schema, maps embed</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Google Maps embed URL</td>
+          <td>Contact page, Homepage</td>
+          <td><span class="badge client">Client / FFS</span></td>
+        </tr>
+        <tr>
+          <td>Google Business Profile URL</td>
+          <td>Schema, review links, GBP verification</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Final service list</td>
+          <td>Navigation, SPs, SLPs, contact form options, URL structure</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>NWA city coverage list</td>
+          <td>LOC-B pages, SLP pages, service area block</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Review count &amp; rating</td>
+          <td>Trust bar, homepage, all SPs</td>
+          <td><span class="badge client">Client / GBP</span></td>
+        </tr>
+        <tr>
+          <td>Years in business</td>
+          <td>Trust bar, about section</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Certifications &amp; licenses</td>
+          <td>Trust bar, footer, schema</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Guarantee / warranty language</td>
+          <td>SP pages, homepage CTA</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Brand differentiators (3–5)</td>
+          <td>Homepage why-us section, SP pages</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Logo files</td>
+          <td>Header, footer, favicons</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Brand color hex values</td>
+          <td>CSS variables, all design tokens</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Photography</td>
+          <td>Hero, about, service pages, team section</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+        <tr>
+          <td>Fieldroutes portal embed</td>
+          <td>Homepage CTA block, nav link</td>
+          <td><span class="badge client">Client / Fieldroutes</span></td>
+        </tr>
+        <tr>
+          <td>GA4 Measurement ID</td>
+          <td>Analytics, conversion tracking</td>
+          <td><span class="badge ffs">FFS to create or get from client</span></td>
+        </tr>
+        <tr>
+          <td>Response time SLA</td>
+          <td>Contact page, homepage CTA copy</td>
+          <td><span class="badge client">Client</span></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <strong>Fast Forward Search LLC</strong> · Website Build Spec · Evergreen Lawn &amp; Pest Control<br>
+  Version 0.1 — Draft / Incomplete · Do not begin full development until missing fields are received.<br>
+  Platform: Astro + Sanity CMS · Deployment: Vercel
+</footer>
+
+</body>
+</html>

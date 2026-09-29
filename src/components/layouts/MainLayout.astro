@@ -291,6 +291,12 @@ const filteredTreatmentChildren = treatmentChildren.filter(
 
 const preferredTopLevelOrder = ["bed-bug-treatment", "service-area", "blog", "contact-us"];
 const priorityBySlug = new Map(preferredTopLevelOrder.map((slug, index) => [slug, index]));
+const CANONICAL_NAV_LABELS: Record<string, string> = {
+  "bed-bug-treatment": "Bed Bug Treatment",
+  "service-area": "Service Area",
+  blog: "Blog",
+  "contact-us": "Contact Us",
+};
 
 const topLevelCmsPages = allPageEntries
   .filter((entry) => Boolean(entry.slug) && Boolean(entry.title))
@@ -300,11 +306,12 @@ const topLevelCmsPages = allPageEntries
     const slug = (entry.slug ?? "").trim().toLowerCase();
     return {
       slug,
-      label: (entry.title ?? "").trim(),
+      label: CANONICAL_NAV_LABELS[slug] ?? (entry.title ?? "").trim(),
       href: normalizeHref(slug)
     };
   })
   .filter((entry) => !EXCLUDED_HEADER_SLUGS.has(entry.slug))
+  .filter((entry) => preferredTopLevelOrder.includes(entry.slug))
   .filter((entry) => Boolean(entry.label) && existingRouteHrefs.has(entry.href))
   .filter((entry, index, array) => array.findIndex((candidate) => candidate.href === entry.href) === index)
   .sort((a, b) => {
@@ -338,6 +345,7 @@ const quickLinks = [
   { label: "Service Area", href: "/service-area/" },
   { label: "Contact Us", href: "/contact-us/" },
   { label: "Blog", href: "/blog/" },
+  { label: "Content & Section Guide", href: "/template-guide/" },
 ];
 const footerServiceLinks: FooterServiceLink[] = [
   {
@@ -775,7 +783,7 @@ const organizationSchema = {
     <meta property="og:description" content={description} />
     <meta
       property="og:image"
-      content={new URL(brandLogoPath, PREFERRED_SITE_ORIGIN)}
+      content={absoluteLogoUrl}
     />
 
     <!-- Twitter -->
@@ -785,7 +793,7 @@ const organizationSchema = {
     <meta property="twitter:description" content={description} />
     <meta
       property="twitter:image"
-      content={new URL(brandLogoPath, PREFERRED_SITE_ORIGIN)}
+      content={absoluteLogoUrl}
     />
 
     {/*

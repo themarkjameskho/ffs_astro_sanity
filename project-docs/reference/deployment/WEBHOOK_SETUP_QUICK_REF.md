@@ -28,10 +28,12 @@ Copy the output (looks like: `a1b2c3d4e5f6...`)
 ### Step 4: Create Sanity Webhook
 - sanity.io → Your Project → Manage → API → Webhooks → + Create
 - **Name**: `vercel-revalidate-prod`
-- **URL**: `https://{{fork_source_slug}}pestcontrol.com/api/revalidate`
+- **URL**: `https://{{PRODUCTION_DOMAIN}}/api/revalidate`
 - **Method**: POST
 - **Events**: ☑ Create, ☑ Update, ☑ Delete
 - **Add Header**: Key: `x-vercel-webhook-secret` | Value: Token from Step 1
+- **Dataset**: pick the one dataset this deploy reads — not `* (all datasets)`
+- **Leave `Secret` empty** — it signs a different header and yields 401
 - Click Create
 
 ### Step 5: Test

@@ -1,41 +1,28 @@
-# Component Inventory
+# Shared Component Inventory and Change Gate
 
-## Status Key
-- `✅` implemented & documented
-- `🚧` in progress
-- `📝` planned / not started
+This template has one registered-page assembly system. The inventory below is derived from `studio/schemaTypes/documents/page.ts` and `src/components/sections/SectionRenderer.astro`; verify these code files before changing the list.
 
-## Global Foundations
-| Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
-| LayoutShell | 📝 | `src/layouts/Layout.astro` | Primary page wrapper |
-| Header | 📝 | `src/components/navigation/Header.astro` | Responsive nav |
-| Footer | 📝 | `src/components/navigation/Footer.astro` | |
-| SEOHead | 📝 | `src/components/meta/SEOHead.astro` | Handles meta tags |
+| Sanity type | Shared Astro component | Primary use |
+|---|---|---|
+| `heroSection` | `HeroSection.astro` | Page introduction and primary conversion action |
+| `serviceGridSection` | `ServiceGridSection.astro` | Service/category links |
+| `processSection` | `ImageCardSection.astro` | Image-led process or feature cards |
+| `serviceAreaSection` | `ServiceAreaSection.astro` | Coverage/community lists |
+| `ctaSection` | `CtaSection.astro` | Conversion band |
+| `contactSection` | `ContactSection.astro` | Contact details/map/links |
+| `blogListSection` | `BlogListSection.astro` | Automatic blog listing |
+| `iconGridSection` | `IconGridSection.astro` | Benefits/differentiators |
+| `twoColTextImageSection` | `TwoColTextImageSection.astro` | Rich explanation with imagery |
+| `leadFormSection` | `LeadFormSection.astro` | Lead capture |
+| `htmlSection` | `HtmlSection.astro` | Approved legal content or vetted embed only |
+| `faqSection` | `FaqSection.astro` | Customer Q&A |
+| `areasSection` | `AreasSection.astro` | Grouped city/state lists |
+| `stepsSection` | `StepsSection.astro` | Sequential customer journey |
 
-## Content Blocks
-| Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
-| HeroSection | 📝 | `src/components/blocks/HeroSection.astro` | Supports rich text + CTA |
-| FeatureList | 📝 | `src/components/blocks/FeatureList.astro` | |
-| TestimonialSlider | 📝 | `src/components/blocks/TestimonialSlider.astro` | Consider Astro island |
-| ContactForm | 📝 | `src/components/forms/ContactForm.astro` | Integrate with form backend |
+Global `MainLayout.astro`, header, and footer are site shell components, not page-content templates.
 
-## Utilities & Shared Elements
-| Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
-| Button | 📝 | `src/components/ui/Button.astro` | Variants + icon support |
-| Badge | 📝 | `src/components/ui/Badge.astro` | |
-| Icon | 📝 | `src/components/ui/Icon.astro` | Pulls from icon set |
+## Change gate
 
-## Sanity Portable Text Renderers
-| Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
-| PortableTextRenderer | 📝 | `src/components/cms/PortableTextRenderer.astro` | Maps blocks to Astro components |
-| ImageWithCaption | 📝 | `src/components/cms/ImageWithCaption.astro` | Uses Sanity asset pipeline |
+Before proposing a new component or variant, demonstrate that no registered component can meet a repeatable need through its existing content contract and approved design-system variation. The architecture owner must approve the reusable direction before implementation.
 
-## Documentation Tasks
-- Keep this inventory synced with `project-docs/Astro-Sanity Process/architecture/overview_architecture.md`.
-- Update with props interface snippets as components stabilize.
-- Link to Storybook/MDX demos when available.
-
+Every approved change must be complete across schema, TypeScript, all GROQ projections, section contract, canonical renderer, shared component, editor guidance, CMS readback, and affected-route desktop/mobile verification. A change that works only on one page is a HOLD, not a new component.

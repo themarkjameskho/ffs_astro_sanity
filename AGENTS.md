@@ -3,14 +3,25 @@
 ## Multi-Agent Workflow
 - Docs live under `project-docs/`.
 - Mandatory lifecycle gate: `project-docs/LIFECYCLE-CHECKLIST.md`.
-- Agent role cards and TOML profiles live under `project-docs/agents/`; use Mitch for drafting and Charlie for editor QA.
+- Agent role cards and TOML profiles live under `project-docs/agents/`.
 - Audience entry points live under `project-docs/audiences/`.
 - Trigger phrase: `check work`
+
+## Required First Read (Every Change)
+1. `project-docs/START-HERE.md` — classify the work as Fresh Build, WordPress Migration, Landing Page, or governed existing-project change.
+2. `project-docs/LIFECYCLE-CHECKLIST.md` — use the matching stage gate.
+3. `project-docs/standards/COMPONENT-AND-CONTENT-STANDARD.md` — required page architecture, rich-text, heading/list, CTA, and migration-normalization rules.
+4. The selected track under `project-docs/tracks/`.
+
+When the trigger phrase **`check work`** is used, report: selected track, lifecycle stage, gate result (`PASS`, `SCOPED PASS`, `HOLD`, or `NOT APPLICABLE`), first blocker, owner, next action, and evidence required.
 
 ## Mandatory Build/Migration Guidance
 - Every AI agent and developer must use `project-docs/LIFECYCLE-CHECKLIST.md` as the stage-gate checklist.
 - For a new build, follow `project-docs/LIFECYCLE-CHECKLIST.md` plus `project-docs/Astro-Sanity Process/astro-sanity-development-process.md`.
 - For a WordPress → Astro + Sanity migration, follow `project-docs/LIFECYCLE-CHECKLIST.md` plus `project-docs/Astro-Sanity Process/wordpress-to-astro-migration.md`.
+- **Mandatory component-first architecture:** follow `project-docs/Astro-Sanity Process/COMPONENT-FIRST-ARCHITECTURE-POLICY.md` on every change. Assemble pages from registered shared components driven by Sanity; do not create page-specific templates, visual route/slug/title branches, renderer bypasses, or one-off CSS. Treat violations as a HOLD and obtain architecture-owner approval before proposing a reusable component or variant.
+- **Mandatory content architecture:** every substantive section has a meaningful heading; new section body copy is Sanity Portable Text; titled lists use logical H3/H4/H5 hierarchy; and CTAs use a verified primary action plus an optional secondary action. Do not use standalone title-only layout bands. Existing plain-string body fields are compatibility-only until a shared migration is approved and implemented.
+- **Mandatory migration normalization:** preserve substantive WordPress content, URLs, metadata, and media provenance. Consolidate adjacent WordPress layout blocks into complete supported sections and record the mapping; never silently drop substantive content.
 - Do not move from pre-development to development, development to pre-launch, or pre-launch to launch until the matching checklist section is complete or open items are explicitly documented.
 
 ## Project Snapshot (as of 2026-01-22)
@@ -25,7 +36,16 @@
 - Reusable playbook: `project-docs/Astro-Sanity Process/README.md`
 
 ### Active (use for current work)
-- Setup & ops: `project-docs/active/setup/ASTRO-SANITY-VERCEL-SETUP.md`, `project-docs/active/setup/SANITY_DASHBOARD_SETUP.md`
+- Setup & ops: `project-docs/active/setup/NEW_CLIENT_REPO_SETUP.md` (step 1 — duplicate template, rebrand, GitHub, route fresh-build vs migration), `project-docs/active/setup/SANITY_PROVISIONING.md` (step 2 — project, token, Studio deploy, members, webhook), `project-docs/active/setup/ASTRO-SANITY-VERCEL-SETUP.md`, `project-docs/active/setup/SANITY_DASHBOARD_SETUP.md`
+
+### Rules when running the two setup docs
+- Never invent a value. Client slug, domain, GitHub org, project ID, member emails: ask, do not guess.
+- Never skip a step's Verify command, and never report a step complete without running it. Report actual output, not a summary.
+- Stop after two failed attempts at the same step. Report the command, the real output, and the expectation.
+- Before any delete or overwrite, read the current state and confirm it matches what the doc assumes. If it differs, the assumption is wrong — stop.
+- Never print a Sanity token into chat, a log, a commit or a document.
+- `sanity deploy` is destructive when `studio/sanity.cli.js` still carries the template's `studioHost` — it targets another client's live Studio. Read that value before deploying.
+- Sanity project creation, token minting and member invites are browser-only. Without browser access, hand them to a human with the exact values needed; do not attempt an API workaround.
 - Content ops: `project-docs/active/content-ops/CONTENT_WRITER_GUIDE.md`, `project-docs/active/content-ops/FORM_CREATION_GUIDE.md`
 - Testing: `project-docs/active/testing/STAGING_TESTING_GUIDE.md`
 - Open issue: `project-docs/active/open-issues/SECTIONS_NEEDING_WIDTH_HEIGHT_FIX.md` (CLS fix list)

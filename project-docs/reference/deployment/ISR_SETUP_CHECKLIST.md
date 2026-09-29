@@ -1,4 +1,4 @@
-> ⚠️ **STALE — kept for historical reference only.** This file was written for the {{FORK_SOURCE_PROJECT}} fork and references `{{fork_source_slug}}pestcontrol.com`. For the current {{BRAND_ABBREV}} setup (ISR config, Sanity webhook, secrets, troubleshooting), see [`{{BRAND_ABBREV}}_ISR_WEBHOOK.md`](./{{BRAND_ABBREV}}_ISR_WEBHOOK.md).
+> ⚠️ **STALE — kept for historical reference only.** This file was written for the {{FORK_SOURCE_PROJECT}} fork and references `{{fork_source_slug}}pestcontrol.com`. For the current {{BRAND_ABBREV}} setup (ISR config, Sanity webhook, secrets, troubleshooting), see [`SANITY_WEBHOOK_SETUP.md`](./SANITY_WEBHOOK_SETUP.md).
 
 # ISR Setup Checklist - Action Items
 

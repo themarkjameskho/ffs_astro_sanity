@@ -10,21 +10,26 @@
 Name every task by **what it is**, never "Phase 2 / Phase 3." A task name should tell the dev
 exactly what gets done (e.g. "Build homepage + service pages," not "Build Phase 1").
 
+## Official starting point
+
+Read `START-HERE.md` first. It classifies work as **Fresh Build**, **WordPress Migration**, or **Landing Page/Microsite** and defines the required brief, references, design system, and content architecture. A landing page is a scope profile, not permission to create a one-off template.
+
 ## Mandatory stage gate
 AI agents and developers must use `project-docs/LIFECYCLE-CHECKLIST.md` for every project:
-- New build: lifecycle checklist + `project-docs/Astro-Sanity Process/astro-sanity-development-process.md`.
+- Fresh build: lifecycle checklist + `project-docs/Astro-Sanity Process/astro-sanity-development-process.md`.
 - WordPress migration: lifecycle checklist + `project-docs/Astro-Sanity Process/wordpress-to-astro-migration.md`.
+- Landing page: lifecycle checklist + `project-docs/tracks/LANDING-PAGE.md`, then Fresh Build or Migration guidance according to the source/URL decision.
 - A stage is not complete until the matching checklist section is complete or open items are documented with an owner.
+- Every build and migration must also follow `project-docs/Astro-Sanity Process/COMPONENT-FIRST-ARCHITECTURE-POLICY.md`. Assemble pages from registered Sanity-driven shared components; do not scaffold per-page templates, visual route branches, content heuristics, or one-off CSS. Any architecture deviation is a HOLD until approved by the architecture owner.
 
 ## The 6 steps (≈1 week)
 
-**1. Classify + intake.** Receive the client brief. Classify **New build** vs **Rebuild/WP
-migration** (sets Path A vs Path B in TEMPLATE_README). Briefs are usually incomplete — log what's
+**1. Classify + intake.** Receive the client brief. Classify **Fresh Build**, **WordPress Migration**, or **Landing Page/Microsite** (then determine whether the landing scope is fresh or inherited). Briefs are usually incomplete — log what's
 missing as a requirements checklist; don't block planning on it. Use `project-docs/LIFECYCLE-CHECKLIST.md`
 as the stage gate.
 
 **2. Run the siteplanner → content plan.** Apply Master Spec v2.0 to produce the per-page content
-plan + SEO meta + the page→component map. Deliverables per client: `CONTENT-PLAN.md`,
+plan + SEO meta + the page→component map. Establish the design system and section content architecture before component work. Deliverables per client: `CONTENT-PLAN.md`,
 `COMPONENT-MAP.md`, (+ `GREENIX-REFERENCE.md`-style reference analysis if a benchmark site is named).
 Use `project-docs/active/content-ops/WRITER_PROMPTS_AND_WORKFLOW.md` for AI-generated page copy.
 

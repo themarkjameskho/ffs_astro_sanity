@@ -1,46 +1,32 @@
-# Sanity Content Model
+# Sanity Content Model — Standard Repository Contract
 
-> Use this file to document every schema, its fields, validation rules, and the Astro component that renders it.
+This is the implementation-facing companion to `../../standards/COMPONENT-AND-CONTENT-STANDARD.md` and `../../active/content-ops/SANITY-COMPONENTS-AND-CONTENT-MODEL-GUIDE.md`.
 
-## 1. Document Types
-| Type Key | Purpose | Required Fields | Astro Route / Component | Notes |
-|----------|---------|-----------------|-------------------------|-------|
-| `page` | Generic marketing page | `title`, `slug`, `sections[]`, `seo` | `src/pages/[...slug].astro` | |
-| `homePage` | Homepage variant (if separate) |  |  |  |
-|  |  |  |  |  |
+## Source-of-truth order
 
-## 2. Section / Object Types
-| Schema Key | Used By | Required Fields | Astro Component | Validation |
-|------------|---------|-----------------|-----------------|------------|
-| `heroSection` | `page.sections[]` | `heading`, `body`, `cta` | `src/components/sections/Hero.astro` | `Rule.required()` on heading |
-| `featureStack` | `page.sections[]` | `items[]` | `src/components/sections/WhyChooseUs.astro` | Ensure min 3 items |
-| `contactDetails` | `page.sections[]` | `address`, `phone`, `hours` | `src/components/sections/ContactDetails.astro` | Phone format regex |
-|  |  |  |  |  |
+1. Individual Sanity schemas in `studio/schemaTypes/` — exact field names, validation, and permitted values.
+2. `studio/schemaTypes/documents/page.ts` — page document and registered section union.
+3. `src/types/sections.ts` — runtime TypeScript contracts.
+4. `src/lib/queries/` — GROQ projections.
+5. `src/components/sections/SectionRenderer.astro` — canonical component map.
+6. The editor guide — current supported editorial usage.
 
-## 3. Global Settings
-| Schema | Description | Astro Usage | Notes |
-|--------|-------------|-------------|-------|
-| `siteSettings` | Global brand + SEO config | `src/lib/queries.ts` (`SITE_SETTINGS`) | |
+Documentation never authorizes a field or variant absent from the code above.
 
-## 4. Editorial Guidelines
-- **Naming:** Page titles should be 50–60 characters; slugs should be hyphenated lowercase.
-- **Images:** Minimum width 1600px, aspect ratio 16:9 preferred. Always add alt text summarizing content.
-- **Rich Text:** Limit heading depth to `h3`. Use blockquote for testimonials only.
-- **Taxonomy:** Tag services by category (`heat-treatment`, `chemical-treatment`, etc.) for future filtering.
+## Standard page contract
 
-## 5. Datasets
-| Dataset | Purpose | Access | Notes |
-|---------|---------|--------|-------|
-| `production` | Live content | Read + write (editors), deploy tokens (read) | |
-| `staging` | Prelaunch/UAT | Same as production | |
-| `development` | Optional local dataset | Developers only | |
+Every marketing page is a `page` document with required `title`, `slug`, `pageType`, `sections[]`, and managed SEO fields. The catch-all Astro route loads the content and sends the ordered section array to the canonical renderer.
 
-## 6. Preview Payloads
-- `getPreviewPage(slug: string)` – Include drafts, return sections array typed for Astro.
-- Ensure portable text serializers align with `SectionRenderer`.
+Registered section types are: `heroSection`, `serviceGridSection`, `processSection`, `serviceAreaSection`, `ctaSection`, `contactSection`, `blogListSection`, `iconGridSection`, `twoColTextImageSection`, `leadFormSection`, `htmlSection`, `faqSection`, `areasSection`, and `stepsSection`.
 
-## 7. Outstanding Questions
-- [ ] Do we need localized content?
-- [ ] Should testimonials live in a separate collection?
-- [ ] What is the approval workflow for publishing?
+## Required semantic content shape
 
+For every substantive section, model the content in this order when applicable: optional eyebrow; meaningful section heading; optional subtitle; Portable Text body; optional titled list group; CTA helper/title; primary action; optional secondary action. The page hero owns the H1; section headings are normally H2; group/item nesting follows H3/H4/H5.
+
+## Portable Text policy
+
+New section body prose must use a Portable Text field. Existing string/text descriptions are compatibility fields only. Do not delete legacy fields or bulk-convert existing documents until the approved shared rollout includes schema, query, type, renderer, CMS readback, route, visual-regression, and rollback evidence.
+
+## Migration policy
+
+Map WordPress source blocks to the registered section contract. Several consecutive source blocks may become one complete section, but substantive content, metadata, source URLs, and media provenance must remain traceable in the import map. No page-specific schema or template is permitted to avoid normalization.
