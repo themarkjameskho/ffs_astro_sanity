@@ -57,7 +57,8 @@
     "EV-017: main navigation uses canonical simple labels and excludes template/legal CMS pages",
     "EV-018: guide route includes the content architecture hierarchy and authoring rules",
     "EV-019: global footer exposes Content & Section Guide on every page",
-    "EV-020: local-only project starter and visual section catalog verified outside production output"
+    "EV-020: local-only project starter and visual section catalog verified outside production output",
+    "EV-021: launchable homepage guide now has Sanity-hosted two-column hero and full registered component catalog"
   ],
   "next_action": {
     "action": "Keep the local preview available for review; run deployment-specific verification only when a deployment is requested",
